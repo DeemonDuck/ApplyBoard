@@ -1,0 +1,111 @@
+/* ============================================================
+   DESIGN TOKENS
+   The "ledger" concept: this is a record book for your job hunt,
+   not a generic SaaS dashboard. Navy/ink base, warm signal colors
+   for status, serif display for headers (feels like a ledger
+   title), grotesk for data density, mono for numbers/stats.
+   ============================================================ */
+
+:root {
+  /* Base palette */
+  --ink: #10172A;          /* main background */
+  --ink-raised: #161E36;   /* card / panel surfaces, one step lighter */
+  --ink-line: #28324F;     /* hairline borders */
+  --paper: #F3F1EA;        /* primary text on dark */
+  --paper-dim: #A7ADC2;    /* secondary text */
+  --paper-faint: #6B7589;  /* tertiary / placeholder text */
+
+  /* Status signal colors */
+  --status-applied: #6B7589;     /* slate - neutral, just submitted */
+  --status-screening: #5E8FB8;   /* steel blue - under review */
+  --status-interview: #E8A33D;   /* amber - active, alert, momentum */
+  --status-offer: #5FA887;       /* sage green - success, calm */
+  --status-rejected: #B85C4A;    /* muted rust - data, not alarm */
+
+  /* Type */
+  --font-display: 'Fraunces', serif;
+  --font-body: 'Inter', sans-serif;
+  --font-mono: 'JetBrains Mono', monospace;
+
+  /* Spacing scale */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 24px;
+  --space-6: 32px;
+  --space-7: 48px;
+  --space-8: 64px;
+
+  /* Radius - small, not the generic 12-16px rounded-everything look */
+  --radius-sm: 4px;
+  --radius-md: 6px;
+
+  color-scheme: dark;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html, body {
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  background: var(--ink);
+  color: var(--paper);
+  font-family: var(--font-body);
+  -webkit-font-smoothing: antialiased;
+  line-height: 1.5;
+}
+
+#root {
+  min-height: 100vh;
+}
+
+h1, h2, h3 {
+  font-family: var(--font-display);
+  font-weight: 600;
+  margin: 0;
+  letter-spacing: -0.01em;
+}
+
+button {
+  font-family: var(--font-body);
+  cursor: pointer;
+}
+
+input, textarea, select {
+  font-family: var(--font-body);
+}
+
+/* Visible keyboard focus everywhere - accessibility floor */
+:focus-visible {
+  outline: 2px solid var(--status-interview);
+  outline-offset: 2px;
+}
+
+/* Respect reduced motion preference */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-track {
+  background: var(--ink);
+}
+::-webkit-scrollbar-thumb {
+  background: var(--ink-line);
+  border-radius: var(--radius-sm);
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--paper-faint);
+}
