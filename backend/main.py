@@ -86,3 +86,52 @@ def get_application(app_id: int, db: Session = Depends(get_db)):
         raise HTTPException(status_code=404, detail="Application not found")
     return app_obj
 
+@app.patch("/applications/{app_id}", response_model=JobApplicationOut)
+def update_application(app_id: int, payload: JobApplicationUpdate, db: Session = Depends(get_db)):
+    """
+    Update an existing application. Only the fields you send get changed —
+    this is what makes quick status updates (e.g. moving to 'Interview')
+    cheap and simple from the dashboard.
+    """
+    app_obj = db.query(JobApplication).filter(JobApplication.id == app_id).first()
+    if not app_obj:
+        raise HTTPException(status_code=404, detail="Application not found")
+
+    update_data = payload.model_dump(exclude_unset=True)
+
+    if "status" in update_data and update_data["status"] not in VALID_STATUSES:
+        raise HTTPException(status_code=400, detail=f"status must be one of {VALID_STATUSES}")
+
+    for field, value in update_data.items():
+        setattr(app_obj, field, value)
+
+    db.commit()
+    db.refresh(app_obj)
+    return app_obj
+
+
+@app.delete("/applications/{app_id}")
+def delete_application(app_id: int, db: Session = Depends(get_db)):
+    """Remove an application (e.g. if you logged it by mistake)."""
+    app_obj = db.query(JobApplication).filter(JobApplication.id == app_id).first()
+    if not app_obj:
+        raise HTTPException(status_code=404, detail="Application not found")
+
+    db.delete(app_obj)
+    db.commit()
+    return {"message": f"Application {app_id} deleted"}
+
+
+@app.get("/stats")
+def get_stats(db: Session = Depends(get_db)):
+    """
+    Quick summary numbers — how many applications per status.
+    Handy for a dashboard header like 'You've applied to 47 jobs, 5 in Interview stage'.
+    """
+    all_apps = db.query(JobApplication).all()
+    counts = {status: 0 for status in VALID_STATUSES}
+    for a in all_apps:
+        counts[a.status] = counts.get(a.status, 0) + 1
+    counts["total"] = len(all_apps)
+    return counts
+
