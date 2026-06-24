@@ -45,3 +45,44 @@ def on_startup():
 @app.get("/")
 def root():
     return {"message": "Job Tracker API is running. Visit /docs for the API explorer."}
+
+
+@app.post("/applications", response_model=JobApplicationOut)
+def create_application(payload: JobApplicationCreate, db: Session = Depends(get_db)):
+    """Log a new job application."""
+    if payload.status not in VALID_STATUSES:
+        raise HTTPException(status_code=400, detail=f"status must be one of {VALID_STATUSES}")
+
+    new_app = JobApplication(**payload.model_dump())
+    db.add(new_app)
+    db.commit()
+    db.refresh(new_app)
+    return new_app
+
+
+@app.get("/applications", response_model=List[JobApplicationOut])
+def list_applications(
+    status: Optional[str] = Query(None, description="Filter by status, e.g. Interview"),
+    platform: Optional[str] = Query(None, description="Filter by platform, e.g. LinkedIn"),
+    db: Session = Depends(get_db),
+):
+    """
+    List all applications, optionally filtered by status and/or platform.
+    Most recent first (by date_applied).
+    """
+    query = db.query(JobApplication)
+    if status:
+        query = query.filter(JobApplication.status == status)
+    if platform:
+        query = query.filter(JobApplication.platform == platform)
+    return query.order_by(JobApplication.date_applied.desc()).all()
+
+
+@app.get("/applications/{app_id}", response_model=JobApplicationOut)
+def get_application(app_id: int, db: Session = Depends(get_db)):
+    """Fetch a single application by id."""
+    app_obj = db.query(JobApplication).filter(JobApplication.id == app_id).first()
+    if not app_obj:
+        raise HTTPException(status_code=404, detail="Application not found")
+    return app_obj
+
