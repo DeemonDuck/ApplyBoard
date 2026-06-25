@@ -112,3 +112,9 @@ button:disabled {
 .status-msg.success {
   color: var(--sage);
 }
+
+.description-indicator {
+  font-size: 11px;
+  color: var(--sage);
+  margin: -4px 0 10px;
+}

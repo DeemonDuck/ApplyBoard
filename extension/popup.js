@@ -33,10 +33,19 @@ async function tryAutoFill() {
     if (response && response.company) {
       document.getElementById("company").value = response.company || "";
       document.getElementById("role").value = response.role || "";
-      document.getElementById("criteria").value = response.criteria || "";
       if (response.platform) {
         document.getElementById("platform").value = response.platform;
       }
+
+      // full_description is the complete raw JD text - stored silently
+      // for later offline processing, not shown in the small popup UI.
+      const fullDesc = response.full_description || "";
+      document.getElementById("full_description").value = fullDesc;
+      if (fullDesc.length > 0) {
+        document.getElementById("description-length").textContent = fullDesc.length;
+        document.getElementById("description-indicator").classList.remove("hidden");
+      }
+
       detectedBadge.classList.remove("hidden");
     }
 
@@ -59,6 +68,7 @@ form.addEventListener("submit", async (e) => {
     platform: document.getElementById("platform").value,
     url: document.getElementById("url").value.trim(),
     criteria: document.getElementById("criteria").value.trim(),
+    full_description: document.getElementById("full_description").value,
     status: "Applied",
   };
 
