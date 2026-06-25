@@ -41,9 +41,10 @@ function scrapeLinkedInJob() {
     platform: "LinkedIn",
     role: role ? role.trim() : "",
     company: company ? company.trim() : "",
-    // Truncate — the full JD is often 2000+ words, we just want a useful
-    // snippet for the "criteria" field, not the whole posting.
-    criteria: description ? description.trim().slice(0, 500) : "",
+    // Full, untouched JD text - stored separately from `criteria` (which is
+    // for your own short manual notes) so the complete posting is preserved
+    // for later offline processing, e.g. extracting emails/phone numbers.
+    full_description: description ? description.trim() : "",
   };
 }
 
@@ -83,3 +84,4 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     sendResponse(scrapeLinkedInJob());
   }
 });
+
