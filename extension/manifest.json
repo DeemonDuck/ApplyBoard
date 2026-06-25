@@ -40,7 +40,7 @@
       "run_at": "document_idle"
     },
     {
-      "matches": ["https://www.indeed.com/viewjob*", "https://in.indeed.com/viewjob*"],
+      "matches": ["https://www.indeed.com/*", "https://in.indeed.com/*"],
       "js": ["content-scripts/indeed.js"],
       "run_at": "document_idle"
     }
