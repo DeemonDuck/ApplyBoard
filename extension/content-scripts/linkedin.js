@@ -42,22 +42,6 @@
  * it sits under now.
  */
 
-function scrapeLinkedInJob() {
-  const role = findJobTitle();
-  const company = findCompanyName();
-  const description = findDescription();
-
-  return {
-    platform: "LinkedIn",
-    role: role ? role.trim() : "",
-    company: company ? company.trim() : "",
-    // Full, untouched JD text - stored separately from `criteria` (which is
-    // for your own short manual notes) so the complete posting is preserved
-    // for later offline processing, e.g. extracting emails/phone numbers.
-    full_description: description ? description.trim() : "",
-  };
-}
-
 function findJobTitle() {
   // The job title link's href always contains "/jobs/view/<digits>".
   // We match on the URL pattern, not the (unstable) class name.
@@ -76,66 +60,99 @@ function findCompanyName() {
   return companyLink ? companyLink.textContent : null;
 }
 
-function findDescription() {
-  // We verified directly (DevTools inspection on a live page) that the
-  // search-results layout has NO "#job-details" id at all - that id only
-  // exists on the standalone /jobs/view/ page layout. On the search-results
-  // layout, the description sits in an unlabeled div with obfuscated,
-  // unstable classes - so instead we anchor on the "About the job" <h2>
-  // heading, which LinkedIn shows above every job description regardless
-  // of layout, and read its container.
-  //
-  // Before reading, we also click "see more" if it's present - otherwise
-  // LinkedIn may only have the truncated preview text in the DOM, not the
-  // full posting.
-  expandSeeMore();
-
-  // Try the old standalone-page id first (still valid on that layout).
+function findDescriptionContainer() {
+  // Shared by findDescription() and expandSeeMore() so both always agree
+  // on which container is "the description" - this is also what fixes
+  // the "see more click scrolls to a random job card" bug: that bug was
+  // caused by searching the WHOLE page for a "see more" button, which
+  // could match something in the job list sidebar instead of the open
+  // detail panel. Scoping to this specific container fixes it.
   const standalonePageEl =
     document.querySelector("#job-details") ||
     document.querySelector(".jobs-description__content") ||
     document.querySelector(".jobs-box__html-content");
-  if (standalonePageEl) {
-    return standalonePageEl.textContent;
-  }
+  if (standalonePageEl) return standalonePageEl;
 
-  // Fall back to the heading-anchor approach for the search-results layout.
   const heading = [...document.querySelectorAll("h2, h3")].find(
     (el) => el.textContent.trim() === "About the job"
   );
-  if (!heading) return null;
+  return heading?.parentElement?.parentElement || null;
+}
 
-  // The description lives in the heading's grandparent container
-  // (heading -> wrapping div -> container that also holds the body text).
-  const container = heading.parentElement?.parentElement;
+function findDescription(container) {
   if (!container) return null;
 
-  // Strip the heading's own text back off the front, so we return just
-  // the JD body, not "About the job" repeated at the start of every entry.
+  const heading = [...container.querySelectorAll("h2, h3")].find(
+    (el) => el.textContent.trim() === "About the job"
+  );
+
   const fullText = container.textContent.trim();
+  if (!heading) return fullText;
+
   const headingText = heading.textContent.trim();
   return fullText.startsWith(headingText) ? fullText.slice(headingText.length).trim() : fullText;
 }
 
-function expandSeeMore() {
-  // LinkedIn's "see more" / "...more" button text varies slightly by
-  // layout. We look for a button/link with short, matching text rather
-  // than a specific class, since (as established) classes here are
-  // unstable. This is a best-effort click - if no such button is found,
-  // we just proceed with whatever text is already in the DOM.
-  const candidates = [...document.querySelectorAll("button, a")];
+function expandSeeMore(container) {
+  if (!container) return false;
+
+  // Search ONLY inside the description container, not the whole page -
+  // this is what prevents accidentally clicking an unrelated "see more"/
+  // "show more" button elsewhere (e.g. in the job list sidebar).
+  const candidates = [...container.querySelectorAll("button, a, span")];
   const seeMoreBtn = candidates.find((el) => {
     const text = el.textContent.trim().toLowerCase();
     return text === "see more" || text === "...see more" || text === "more";
   });
+
   if (seeMoreBtn) {
     seeMoreBtn.click();
+    return true; // tells the caller a click happened, so it's worth waiting
   }
+  return false;
+}
+
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+async function scrapeLinkedInJob() {
+  const role = findJobTitle();
+  const company = findCompanyName();
+
+  const container = findDescriptionContainer();
+  const didClick = expandSeeMore(container);
+
+  // Only wait if we actually clicked something - otherwise the description
+  // was already fully expanded (or there was nothing to expand), and we
+  // can read it immediately with no artificial delay.
+  if (didClick) {
+    await sleep(400); // give LinkedIn's re-render time to finish
+  }
+
+  const description = findDescription(container);
+
+  return {
+    platform: "LinkedIn",
+    role: role ? role.trim() : "",
+    company: company ? company.trim() : "",
+    // Full, untouched JD text - stored separately from `criteria` (which is
+    // for your own short manual notes) so the complete posting is preserved
+    // for later offline processing, e.g. extracting emails/phone numbers.
+    full_description: description ? description.trim() : "",
+  };
 }
 
 // Listen for the popup asking "what job is this?"
+// scrapeLinkedInJob is now async (it may wait ~400ms after clicking "see
+// more"), so we can't just call sendResponse(scrapeLinkedInJob()) anymore -
+// that would send a pending Promise object instead of the actual data.
+// Chrome's extension messaging requires returning `true` from the listener
+// to keep the message channel open, then calling sendResponse() later once
+// the async work finishes.
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message.type === "GET_JOB_DATA") {
-    sendResponse(scrapeLinkedInJob());
+    scrapeLinkedInJob().then(sendResponse);
+    return true; // keep the channel open for the async response above
   }
 });
