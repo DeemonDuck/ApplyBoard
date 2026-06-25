@@ -1,0 +1,54 @@
+{
+  "manifest_version": 3,
+  "name": "Job Tracker Capture",
+  "version": "1.0.0",
+  "description": "Log job applications to your local Job Tracker with one click.",
+
+  "permissions": [
+    "activeTab",
+    "scripting",
+    "storage"
+  ],
+
+  "host_permissions": [
+    "http://127.0.0.1:8000/*"
+  ],
+
+  "action": {
+    "default_popup": "popup.html",
+    "default_icon": {
+      "16": "icons/icon16.png",
+      "48": "icons/icon48.png",
+      "128": "icons/icon128.png"
+    }
+  },
+
+  "content_scripts": [
+    {
+      "matches": ["https://www.linkedin.com/jobs/*"],
+      "js": ["content-scripts/linkedin.js"],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": ["https://www.naukri.com/job-listings*"],
+      "js": ["content-scripts/naukri.js"],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": ["https://internshala.com/job/*", "https://internshala.com/jobs/*"],
+      "js": ["content-scripts/internshala.js"],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": ["https://www.indeed.com/viewjob*", "https://in.indeed.com/viewjob*"],
+      "js": ["content-scripts/indeed.js"],
+      "run_at": "document_idle"
+    }
+  ],
+
+  "icons": {
+    "16": "icons/icon16.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  }
+}
