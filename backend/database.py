@@ -43,8 +43,13 @@ class JobApplication(Base):
     date_applied = Column(DateTime, default=datetime.utcnow)
     status = Column(String, default="Applied")           # Applied / Screening / Interview / Offer / Rejected
 
-    criteria = Column(Text, nullable=True)                # pasted JD / key requirements
+    criteria = Column(Text, nullable=True)                # pasted JD / key requirements (short, your own notes)
     notes = Column(Text, nullable=True)                   # referral, salary talk, follow-up reminders etc.
+    full_description = Column(Text, nullable=True)        # complete raw JD text, auto-captured by the extension.
+                                                            # Kept separate from `criteria` (which is your own short
+                                                            # notes) so the full text is preserved untouched for
+                                                            # later offline processing (e.g. extracting emails/phone
+                                                            # numbers from postings with an LLM).
 
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
