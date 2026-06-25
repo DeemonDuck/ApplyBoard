@@ -12,40 +12,30 @@
  * whatever job is on screen RIGHT NOW, not whatever was there when the
  * script first injected.
  *
- * NOTE ON SELECTORS: LinkedIn's class names are auto-generated build
- * artifacts (e.g. "jobs-unified-top-card__job-title") and DO change when
- * LinkedIn ships a redesign. If auto-fill stops working months from now,
- * this file — specifically the querySelector strings below — is the
- * first place to check. Right-click the job title on the page, Inspect,
- * and update the selector to match.
+ * IMPORTANT — why this file looks different from a "normal" scraper:
+ * LinkedIn now generates obfuscated, hashed CSS class names (e.g. "_3a0901f3",
+ * "b3e312d2") that appear to change across builds/sessions. Selecting by
+ * class name, which is what most scraping tutorials show, simply does not
+ * work here — we verified this directly by inspecting a live page.
+ *
+ * Instead, this targets the one thing LinkedIn can't obfuscate: the
+ * structure of their URLs.
+ *   - The job title is an <a> whose href contains "/jobs/view/<id>"
+ *   - The company name is an <a> whose href contains "/company/"
+ *   - The description sits in a container with id="job-details"
+ *     (this one stable id has survived multiple LinkedIn redesigns)
+ *
+ * This is more resilient than class-name selectors because URL structure
+ * is tied to LinkedIn's routing/backend, which changes far less often
+ * than their CSS. If this ever stops working, the fix is the same
+ * process we used to find it: open DevTools on a job page, find the
+ * title text, and check what its href or id looks like now.
  */
 
 function scrapeLinkedInJob() {
-  // Multiple selector attempts per field — LinkedIn has shipped at least
-  // 3 different DOM structures for the job title over the years depending
-  // on which page layout you land on (search results pane vs. direct link).
-  const titleSelectors = [
-    "h1.job-details-jobs-unified-top-card__job-title",
-    "h1.t-24",
-    ".jobs-unified-top-card__job-title",
-    "h1",
-  ];
-
-  const companySelectors = [
-    ".job-details-jobs-unified-top-card__company-name a",
-    ".jobs-unified-top-card__company-name",
-    ".job-details-jobs-unified-top-card__company-name",
-  ];
-
-  const descriptionSelectors = [
-    ".jobs-description__content",
-    "#job-details",
-    ".jobs-box__html-content",
-  ];
-
-  const role = querySelectorFirst(titleSelectors);
-  const company = querySelectorFirst(companySelectors);
-  const description = querySelectorFirst(descriptionSelectors);
+  const role = findJobTitle();
+  const company = findCompanyName();
+  const description = findDescription();
 
   return {
     platform: "LinkedIn",
@@ -57,14 +47,34 @@ function scrapeLinkedInJob() {
   };
 }
 
-function querySelectorFirst(selectors) {
-  for (const sel of selectors) {
-    const el = document.querySelector(sel);
-    if (el && el.textContent.trim()) {
-      return el.textContent;
-    }
-  }
-  return null;
+function findJobTitle() {
+  // The job title link's href always contains "/jobs/view/<digits>".
+  // We match on the URL pattern, not the (unstable) class name.
+  const links = [...document.querySelectorAll('a[href*="/jobs/view/"]')];
+  // The same job often appears more than once (e.g. a "similar jobs"
+  // sidebar) - the real title is usually the first one with real text
+  // that isn't just whitespace or an icon-only link.
+  const titleLink = links.find((el) => el.textContent.trim().length > 3);
+  return titleLink ? titleLink.textContent : null;
+}
+
+function findCompanyName() {
+  // Same idea: company link's href contains "/company/<slug>".
+  const links = [...document.querySelectorAll('a[href*="/company/"]')];
+  const companyLink = links.find((el) => el.textContent.trim().length > 0);
+  return companyLink ? companyLink.textContent : null;
+}
+
+function findDescription() {
+  // "job-details" is a plain HTML id (not a generated class), which has
+  // stayed stable across the redesigns we've checked. Falling back to a
+  // couple of older known selectors in case LinkedIn shows a different
+  // layout (e.g. mobile web, A/B test).
+  const el =
+    document.querySelector("#job-details") ||
+    document.querySelector(".jobs-description__content") ||
+    document.querySelector(".jobs-box__html-content");
+  return el ? el.textContent : null;
 }
 
 // Listen for the popup asking "what job is this?"
