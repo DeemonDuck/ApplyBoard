@@ -27,27 +27,39 @@ This project is being built in stages, on purpose — get one layer solid before
 |---|---|---|
 | **Backend (FastAPI + SQLite)** | ✅ Done, tested | Stores every application: company, role, platform, URL, status, criteria, notes. Full CRUD + filtering + stats. |
 | **Dashboard (React)** | ✅ Done | A visual pipeline view — columns by status (Applied → Screening → Interview → Offer/Rejected), click any card to edit. |
-| **Browser Extension** | 🔜 Next | One-click capture while applying — auto-fills company/role/platform on known sites (LinkedIn, Naukri, Internshala, Indeed), manual capture button everywhere else. |
-| **iPad / Mobile access** | 🔜 Later | I apply for jobs mostly from my iPad. Since Apple requires a Mac (or a cloud Mac build service) to ship anything to the App Store, the plan is to get this fully working on Windows first, then either (a) wrap it as a PWA so it installs straight from Safari with zero App Store involvement, or (b) cloud-build a real iOS app later if it's worth the extra step. |
+| **Browser Extension** | ✅ Done, tested | One-click capture while applying — auto-fills company/role/platform on LinkedIn, Naukri, Internshala, Indeed. Manual capture button works on any other site. |
+| **iPad / Mobile access** | ✅ Done | Installable as a home-screen app on iPad via Safari — manifest, icons, and Apple-specific meta tags all wired in. Offline support (service worker) is deferred since it needs HTTPS, which isn't set up yet. |
 
 ---
 
 ## How the pieces fit together
 
-```
-┌─────────────────────┐       ┌──────────────────────┐
-│  Browser Extension    │──────▶│                        │
-│  (capture while        │       │   FastAPI Backend      │──────▶  SQLite
-│   applying)             │       │   (localhost:8000)     │        (job_tracker.db)
-└─────────────────────┘       │                        │
-                                  │                        │◀──────
-┌─────────────────────┐       └──────────────────────┘
-│  React Dashboard       │◀─────────────┘
-│  (review & manage)      │
-└─────────────────────┘
-```
+**Browser Extension** → saves to → **FastAPI Backend** (`localhost:8000`) → reads/writes → **SQLite** (`job_tracker.db`)
 
-Both the dashboard and the (future) extension talk to the same backend. One source of truth, no duplicated logic, no syncing headaches.
+**React Dashboard** → reads/writes → same **FastAPI Backend**
+
+In plain words: the extension and the dashboard never talk to each other
+directly, and neither one touches the database file directly either.
+Everything goes through the one backend, which is the only thing that
+knows how to read/write `job_tracker.db`. This is why adding the extension
+later didn't require touching a single line of dashboard code — they're
+both just separate "clients" of the same API.
+
+### How the extension itself works (briefly)
+
+A browser extension has separate JavaScript contexts that don't share memory
+directly — they only talk to each other through message-passing:
+
+1. **Content script** — JS injected into the actual job posting page. It can
+   read that page's HTML but can't directly call our backend (browser
+   security model blocks that).
+2. **Popup script** — runs when you click the toolbar icon. This is what
+   actually calls the FastAPI backend.
+
+So the flow for an auto-filled save is: content script reads the page →
+popup asks it for that data via `chrome.tabs.sendMessage` → popup pre-fills
+the form → you confirm → popup `fetch()`s the backend directly. Full
+breakdown and load-it-yourself instructions are in `extension/README.md`.
 
 ---
 
@@ -74,7 +86,16 @@ job-tracker/
 │   │       └── StatusBadge.jsx
 │   └── package.json
 │
-├── extension/            # (coming next) Chrome/Edge browser extension
+├── extension/            # Chrome/Edge browser extension
+│   ├── manifest.json      # permissions, content script targets, popup config
+│   ├── popup.html/css/js  # the UI that opens on icon click + save logic
+│   ├── content-scripts/   # one per supported site (DOM scraping)
+│   │   ├── linkedin.js
+│   │   ├── naukri.js
+│   │   ├── internshala.js
+│   │   └── indeed.js
+│   └── icons/
+│
 └── docs/                 # supporting notes
 ```
 
@@ -101,6 +122,43 @@ npm run dev
 This starts the dashboard at `http://localhost:5173`. It expects the backend to already be running on port 8000.
 
 > The backend creates a `job_tracker.db` SQLite file automatically on first run — no manual database setup needed.
+
+**Browser Extension (optional, Chrome/Edge):**
+With the backend running, go to `chrome://extensions`, turn on Developer
+mode, click **Load unpacked**, and select the `extension/` folder. Full
+instructions and how it works in `extension/README.md`.
+
+---
+
+## Using it on iPad
+
+The dashboard installs as a home-screen app on iPad, but it still needs to
+reach the FastAPI backend somewhere — and "localhost" on an iPad means the
+iPad itself, not your laptop. So for now, this only works while both
+devices are on the same WiFi:
+
+1. On your laptop, find its local network IP (Windows: `ipconfig`, look
+   for "IPv4 Address" under your WiFi adapter — something like `192.168.1.42`)
+2. Start the backend so it listens on the network, not just localhost:
+   ```bash
+   uvicorn main:app --reload --port 8000 --host 0.0.0.0
+   ```
+3. On the iPad, open Safari and go to `http://192.168.1.42:5173` (your
+   laptop's IP, dashboard's port) — you'll need `dashboard/src/api.js`'s
+   `BASE_URL` updated to that same IP too, since right now it points at
+   `127.0.0.1`, which only means "this device," wherever it runs.
+4. Tap the **Share** button → **Add to Home Screen**
+
+This only works while you're on the same WiFi as your laptop. The
+permanent fix is deploying the backend somewhere reachable from anywhere
+(Railway, like UPI Sentinel) — deferred for now by design, see Roadmap.
+
+**Why there's no offline support yet:** the part of a PWA that makes it
+work without internet (a "service worker") requires the page to be loaded
+over HTTPS — plain `http://192.168.x.x` doesn't qualify on iOS Safari. We
+skipped this deliberately for now rather than set up certificates just to
+test on a local network; it'll make more sense once the backend is
+actually deployed to a real HTTPS domain anyway.
 
 ---
 
@@ -130,6 +188,7 @@ A few decisions that might look like "why didn't you just do X" if you're skimmi
 - **CORS wide open (`allow_origins=["*"]`)** — fine for now since this only runs on localhost talking to itself. Will get tightened once/if this is ever deployed publicly.
 - **Status is a plain string, not a strict Enum at the DB level** — validated at the API layer instead. This means adding a new stage later (like "Withdrawn") is a one-file change in `constants.js` / `schemas.py`, not a database migration.
 - **`PATCH`, not `PUT`, for updates** — you can update just the `status` field without resending the whole application. This is what makes "drag a card to a new status" type interactions cheap.
+- **Fixed-width pipeline columns, not flexible ones** — on a wide desktop screen all 5 status columns fit, but on iPad width they don't. Letting columns flex/shrink to fit would hide that fact (everything just gets cramped); fixed-width columns plus a horizontal scroll plus a fade-edge hint on the right makes it obvious there's more to scroll to, instead of silently cutting content off.
 
 ---
 
@@ -137,9 +196,10 @@ A few decisions that might look like "why didn't you just do X" if you're skimmi
 
 1. ~~Backend API~~ ✅
 2. ~~React dashboard~~ ✅
-3. Browser extension — manual capture button everywhere, smart auto-fill on LinkedIn/Naukri/Internshala/Indeed
-4. PWA setup — so the dashboard installs cleanly on iPad home screen via Safari, no App Store needed
-5. (Maybe) Cloud-built native iOS app, if the PWA route turns out to be limiting
+3. ~~Browser extension~~ ✅
+4. ~~PWA setup for iPad~~ ✅
+5. Get the backend reachable from the iPad (local network IP today, real deployment later) — see "Using it on iPad" below
+6. (Maybe) Cloud-built native iOS app, if the PWA route turns out to be limiting
 
 ---
 
