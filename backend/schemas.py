@@ -31,6 +31,7 @@ class JobApplicationCreate(BaseModel):
     status: str = "Applied"
     criteria: Optional[str] = None
     notes: Optional[str] = None
+    full_description: Optional[str] = None
 
 
 class JobApplicationUpdate(BaseModel):
@@ -46,6 +47,7 @@ class JobApplicationUpdate(BaseModel):
     status: Optional[str] = None
     criteria: Optional[str] = None
     notes: Optional[str] = None
+    full_description: Optional[str] = None
 
 
 class JobApplicationOut(BaseModel):
@@ -59,6 +61,7 @@ class JobApplicationOut(BaseModel):
     status: str
     criteria: Optional[str]
     notes: Optional[str]
+    full_description: Optional[str]
     created_at: datetime
     updated_at: datetime
 
