@@ -46,6 +46,18 @@
         <textarea id="criteria" rows="3" placeholder="Key requirements they asked for..."></textarea>
       </label>
 
+      <!--
+        full_description isn't a visible field the user fills in - it's the
+        complete, raw JD text auto-captured by the content script, meant for
+        later offline processing (e.g. pulling out emails/phone numbers with
+        a local LLM). A 2000+ character JD doesn't belong in this small
+        popup's UI, so it's just carried silently through a hidden input.
+      -->
+      <input type="hidden" id="full_description" />
+      <div id="description-indicator" class="description-indicator hidden">
+        ✓ Full job description captured (<span id="description-length">0</span> chars)
+      </div>
+
       <div id="status-msg" class="status-msg"></div>
 
       <button type="submit" id="save-btn">Save application</button>
