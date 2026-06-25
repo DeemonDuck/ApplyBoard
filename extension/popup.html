@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Job Tracker Capture</title>
+  <link rel="stylesheet" href="popup.css" />
+</head>
+<body>
+  <div class="popup">
+    <header>
+      <h1>Log this application</h1>
+      <span id="detected-badge" class="badge hidden">Auto-filled</span>
+    </header>
+
+    <form id="capture-form">
+      <label>
+        Company
+        <input type="text" id="company" required placeholder="e.g. Razorpay" />
+      </label>
+
+      <label>
+        Role
+        <input type="text" id="role" required placeholder="e.g. AI/ML Engineer" />
+      </label>
+
+      <label>
+        Platform
+        <select id="platform">
+          <option value="LinkedIn">LinkedIn</option>
+          <option value="Naukri">Naukri</option>
+          <option value="Internshala">Internshala</option>
+          <option value="Indeed">Indeed</option>
+          <option value="Company Website">Company Website</option>
+          <option value="Referral">Referral</option>
+          <option value="Other">Other</option>
+        </select>
+      </label>
+
+      <label>
+        Job posting URL
+        <input type="text" id="url" placeholder="https://..." />
+      </label>
+
+      <label>
+        Criteria / JD notes
+        <textarea id="criteria" rows="3" placeholder="Key requirements they asked for..."></textarea>
+      </label>
+
+      <div id="status-msg" class="status-msg"></div>
+
+      <button type="submit" id="save-btn">Save application</button>
+    </form>
+  </div>
+
+  <script src="popup.js"></script>
+</body>
+</html>
