@@ -6,6 +6,7 @@ const EMPTY_FORM = {
   role: "",
   platform: PLATFORMS[0],
   url: "",
+  location: "",
   status: "Applied",
   criteria: "",
   notes: "",
@@ -27,6 +28,7 @@ export default function ApplicationModal({ existing, onClose, onSave, onDelete }
         role: existing.role || "",
         platform: existing.platform || PLATFORMS[0],
         url: existing.url || "",
+        location: existing.location || "",
         status: existing.status || "Applied",
         criteria: existing.criteria || "",
         notes: existing.notes || "",
@@ -126,6 +128,15 @@ export default function ApplicationModal({ existing, onClose, onSave, onDelete }
             value={form.url}
             onChange={(e) => handleChange("url", e.target.value)}
             placeholder="https://..."
+            style={inputStyle}
+          />
+        </Field>
+
+        <Field label="Location">
+          <input
+            value={form.location}
+            onChange={(e) => handleChange("location", e.target.value)}
+            placeholder="e.g. Gurugram, Haryana, India or Remote"
             style={inputStyle}
           />
         </Field>

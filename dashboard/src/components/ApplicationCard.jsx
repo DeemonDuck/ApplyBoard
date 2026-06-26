@@ -55,11 +55,23 @@ export default function ApplicationCard({ application, onClick }) {
         style={{
           fontSize: "13px",
           color: "var(--paper-dim)",
-          marginBottom: "var(--space-3)",
+          marginBottom: application.location ? "2px" : "var(--space-3)",
         }}
       >
         {application.role}
       </div>
+
+      {application.location && (
+        <div
+          style={{
+            fontSize: "12px",
+            color: "var(--paper-faint)",
+            marginBottom: "var(--space-3)",
+          }}
+        >
+          📍 {application.location}
+        </div>
+      )}
 
       <div
         style={{
