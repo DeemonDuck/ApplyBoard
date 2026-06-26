@@ -60,6 +60,43 @@ function findCompanyName() {
   return companyLink ? companyLink.textContent : null;
 }
 
+function findLocation() {
+  // Verified via direct page inspection: the location text (e.g.
+  // "Gurugram, Haryana, India") sits in a <p> that is a sibling of the
+  // <p> containing the job title link, in the same header block. Rather
+  // than guess a class name (which we know is obfuscated/unstable here),
+  // we anchor on the title link we already trust, then look at nearby
+  // sibling paragraphs for the location pattern.
+  const links = [...document.querySelectorAll('a[href*="/jobs/view/"]')];
+  const titleLink = links.find((el) => el.textContent.trim().length > 3);
+  if (!titleLink) return null;
+
+  // The title's containing <p> sits inside a wrapper div; the location
+  // <p> is a sibling of that wrapper, one level up.
+  const titleWrapper = titleLink.closest("p")?.parentElement;
+  const headerBlock = titleWrapper?.parentElement;
+  if (!headerBlock) return null;
+
+  // Look through sibling <p> elements in this header block for one that
+  // looks like a location line - LinkedIn shows it as
+  // "City, State, Country · X time ago · N applicants", so we take the
+  // text before the first "·" separator as the location.
+  const paragraphs = [...headerBlock.querySelectorAll("p")];
+  for (const p of paragraphs) {
+    const text = p.textContent.trim();
+    // Skip the title paragraph itself (it contains the job title text).
+    if (p.contains(titleLink)) continue;
+    if (text.includes("·") || /^[A-Za-z\s,]+$/.test(text)) {
+      // Take just the part before the first separator dot, if present.
+      const beforeDot = text.split("·")[0].trim();
+      if (beforeDot.length > 0 && beforeDot.length < 100) {
+        return beforeDot;
+      }
+    }
+  }
+  return null;
+}
+
 function findDescriptionContainer() {
   // Shared by findDescription() and expandSeeMore() so both always agree
   // on which container is "the description" - this is also what fixes
@@ -119,6 +156,7 @@ function sleep(ms) {
 async function scrapeLinkedInJob() {
   const role = findJobTitle();
   const company = findCompanyName();
+  const location = findLocation();
 
   const container = findDescriptionContainer();
   const didClick = expandSeeMore(container);
@@ -136,6 +174,7 @@ async function scrapeLinkedInJob() {
     platform: "LinkedIn",
     role: role ? role.trim() : "",
     company: company ? company.trim() : "",
+    location: location ? location.trim() : "",
     // Full, untouched JD text - stored separately from `criteria` (which is
     // for your own short manual notes) so the complete posting is preserved
     // for later offline processing, e.g. extracting emails/phone numbers.
