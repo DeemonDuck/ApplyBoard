@@ -46,6 +46,10 @@ async function tryAutoFill() {
         document.getElementById("description-indicator").classList.remove("hidden");
       }
 
+      // location is also carried silently - visible/editable later on
+      // the dashboard, not surfaced in this small popup.
+      document.getElementById("location").value = response.location || "";
+
       detectedBadge.classList.remove("hidden");
     }
 
@@ -67,6 +71,7 @@ form.addEventListener("submit", async (e) => {
     role: document.getElementById("role").value.trim(),
     platform: document.getElementById("platform").value,
     url: document.getElementById("url").value.trim(),
+    location: document.getElementById("location").value.trim(),
     criteria: document.getElementById("criteria").value.trim(),
     full_description: document.getElementById("full_description").value,
     status: "Applied",

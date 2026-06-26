@@ -47,13 +47,16 @@
       </label>
 
       <!--
-        full_description isn't a visible field the user fills in - it's the
-        complete, raw JD text auto-captured by the content script, meant for
-        later offline processing (e.g. pulling out emails/phone numbers with
-        a local LLM). A 2000+ character JD doesn't belong in this small
-        popup's UI, so it's just carried silently through a hidden input.
+        full_description and location aren't visible fields the user fills
+        in - they're auto-captured by the content script and carried
+        silently. full_description is too long for this small popup's UI;
+        location doesn't need manual confirmation per-application since
+        it's rarely wrong once captured (unlike status, which always
+        needs a human decision). Both are visible/editable later on the
+        dashboard if a correction is ever needed.
       -->
       <input type="hidden" id="full_description" />
+      <input type="hidden" id="location" />
       <div id="description-indicator" class="description-indicator hidden">
         ✓ Full job description captured (<span id="description-length">0</span> chars)
       </div>
