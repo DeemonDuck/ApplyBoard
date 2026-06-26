@@ -61,49 +61,63 @@ function findCompanyName() {
 }
 
 function findLocation() {
-  // PREVIOUS APPROACH (removed): walked up from the title link by a fixed
-  // number of parent levels to find a "header block" containing the
-  // location text. This broke across different job postings because
-  // LinkedIn's nesting depth between the title and location isn't
-  // consistent - confirmed by direct testing across multiple real job
-  // postings, where the same code worked on one and silently returned
-  // null on another (no error thrown, since the code used safe ?.
-  // chaining - it just quietly found nothing).
+  // UPDATED APPROACH: the open job's detail-panel header line only shows
+  // "City, State, Country" with no Remote/Onsite/Hybrid tag. The job CARD
+  // in the sidebar list shows a more complete location string like
+  // "India (Remote)" - confirmed via direct DevTools inspection. So we
+  // now read location from the matching card instead of the header line.
   //
-  // CURRENT APPROACH: instead of relying on DOM structure/depth at all,
-  // scan every <p> on the page for one whose text MATCHES THE PATTERN
-  // LinkedIn consistently uses for this line - confirmed across several
-  // real postings:
-  //   "<City>, <State>, <Country> · <time> · <applicant count>"
-  //   "<City> (Onsite/Remote/Hybrid) · ..."
-  // This is independent of nesting depth or class names - it only cares
-  // about the actual visible text shape, which has stayed consistent
-  // even as the surrounding hashed classes changed between page loads.
-  const paragraphs = [...document.querySelectorAll("p")];
+  // The tricky part: there are many cards in the sidebar (one per job in
+  // the list), so we need the ONE matching the currently open job, not
+  // just the first card on the page. The URL itself tells us which job
+  // is open via "?currentJobId=<id>" - we use that as ground truth and
+  // find the card containing a link to that same job id.
+  const params = new URLSearchParams(window.location.search);
+  const currentJobId = params.get("currentJobId");
 
-  for (const p of paragraphs) {
-    const text = p.textContent.trim();
-    if (text.length === 0 || text.length > 150) continue;
-
-    // Must contain a "·" separator - this is how LinkedIn joins
-    // location/time-posted/applicant-count on this line specifically.
-    if (!text.includes("·")) continue;
-
-    const beforeDot = text.split("·")[0].trim();
-    if (beforeDot.length === 0 || beforeDot.length > 80) continue;
-
-    // Reject paragraphs whose first segment is clearly NOT a location -
-    // e.g. if it's mostly digits (like a salary range or applicant count
-    // that happens to also use "·"), skip it.
-    const looksLikeLocation =
-      /[A-Za-z]/.test(beforeDot) && // contains at least some letters
-      !/^\d/.test(beforeDot); // doesn't start with a digit (rules out "50 results" etc.)
-
-    if (looksLikeLocation) {
-      return beforeDot;
+  if (currentJobId) {
+    const matchingLink = document.querySelector(`a[href*="/jobs/view/${currentJobId}"]`);
+    if (matchingLink) {
+      const card = matchingLink.closest('[componentkey*="job-card"]') || matchingLink.closest("li, div[role='button']");
+      if (card) {
+        const location = scanParagraphsForLocation(card.querySelectorAll("p"));
+        if (location) return location;
+      }
     }
   }
 
+  // Fallback: if we couldn't match a specific card (e.g. URL structure
+  // changes, or this is the standalone /jobs/view/ page which has no
+  // card list at all), fall back to the old header-line scan. Better to
+  // return the less detailed "City, State, Country" than nothing.
+  return scanParagraphsForLocation(document.querySelectorAll("p"));
+}
+
+function scanParagraphsForLocation(paragraphList) {
+  // Shared text-pattern scan used by findLocation()'s card-lookup and its
+  // fallback. Looks for a short paragraph containing a "·" separator
+  // (the header-line style) OR a short paragraph ending in a
+  // parenthesized work-mode tag like "(Remote)" / "(Onsite)" / "(Hybrid)"
+  // (the card style, e.g. "India (Remote)").
+  for (const p of paragraphList) {
+    const text = p.textContent.trim();
+    if (text.length === 0 || text.length > 150) continue;
+
+    // Card style: ends with (Remote)/(Onsite)/(Hybrid) - this is the
+    // version with the work-mode tag we actually want now.
+    if (/\((Remote|Onsite|Hybrid)\)\s*$/i.test(text)) {
+      return text;
+    }
+
+    // Header-line style fallback: "City, State, Country · ..."
+    if (text.includes("·")) {
+      const beforeDot = text.split("·")[0].trim();
+      const looksLikeLocation = /[A-Za-z]/.test(beforeDot) && !/^\d/.test(beforeDot);
+      if (beforeDot.length > 0 && beforeDot.length <= 80 && looksLikeLocation) {
+        return beforeDot;
+      }
+    }
+  }
   return null;
 }
 
