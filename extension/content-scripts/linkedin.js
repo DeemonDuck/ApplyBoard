@@ -61,39 +61,49 @@ function findCompanyName() {
 }
 
 function findLocation() {
-  // Verified via direct page inspection: the location text (e.g.
-  // "Gurugram, Haryana, India") sits in a <p> that is a sibling of the
-  // <p> containing the job title link, in the same header block. Rather
-  // than guess a class name (which we know is obfuscated/unstable here),
-  // we anchor on the title link we already trust, then look at nearby
-  // sibling paragraphs for the location pattern.
-  const links = [...document.querySelectorAll('a[href*="/jobs/view/"]')];
-  const titleLink = links.find((el) => el.textContent.trim().length > 3);
-  if (!titleLink) return null;
+  // PREVIOUS APPROACH (removed): walked up from the title link by a fixed
+  // number of parent levels to find a "header block" containing the
+  // location text. This broke across different job postings because
+  // LinkedIn's nesting depth between the title and location isn't
+  // consistent - confirmed by direct testing across multiple real job
+  // postings, where the same code worked on one and silently returned
+  // null on another (no error thrown, since the code used safe ?.
+  // chaining - it just quietly found nothing).
+  //
+  // CURRENT APPROACH: instead of relying on DOM structure/depth at all,
+  // scan every <p> on the page for one whose text MATCHES THE PATTERN
+  // LinkedIn consistently uses for this line - confirmed across several
+  // real postings:
+  //   "<City>, <State>, <Country> · <time> · <applicant count>"
+  //   "<City> (Onsite/Remote/Hybrid) · ..."
+  // This is independent of nesting depth or class names - it only cares
+  // about the actual visible text shape, which has stayed consistent
+  // even as the surrounding hashed classes changed between page loads.
+  const paragraphs = [...document.querySelectorAll("p")];
 
-  // The title's containing <p> sits inside a wrapper div; the location
-  // <p> is a sibling of that wrapper, one level up.
-  const titleWrapper = titleLink.closest("p")?.parentElement;
-  const headerBlock = titleWrapper?.parentElement;
-  if (!headerBlock) return null;
-
-  // Look through sibling <p> elements in this header block for one that
-  // looks like a location line - LinkedIn shows it as
-  // "City, State, Country · X time ago · N applicants", so we take the
-  // text before the first "·" separator as the location.
-  const paragraphs = [...headerBlock.querySelectorAll("p")];
   for (const p of paragraphs) {
     const text = p.textContent.trim();
-    // Skip the title paragraph itself (it contains the job title text).
-    if (p.contains(titleLink)) continue;
-    if (text.includes("·") || /^[A-Za-z\s,]+$/.test(text)) {
-      // Take just the part before the first separator dot, if present.
-      const beforeDot = text.split("·")[0].trim();
-      if (beforeDot.length > 0 && beforeDot.length < 100) {
-        return beforeDot;
-      }
+    if (text.length === 0 || text.length > 150) continue;
+
+    // Must contain a "·" separator - this is how LinkedIn joins
+    // location/time-posted/applicant-count on this line specifically.
+    if (!text.includes("·")) continue;
+
+    const beforeDot = text.split("·")[0].trim();
+    if (beforeDot.length === 0 || beforeDot.length > 80) continue;
+
+    // Reject paragraphs whose first segment is clearly NOT a location -
+    // e.g. if it's mostly digits (like a salary range or applicant count
+    // that happens to also use "·"), skip it.
+    const looksLikeLocation =
+      /[A-Za-z]/.test(beforeDot) && // contains at least some letters
+      !/^\d/.test(beforeDot); // doesn't start with a digit (rules out "50 results" etc.)
+
+    if (looksLikeLocation) {
+      return beforeDot;
     }
   }
+
   return null;
 }
 
