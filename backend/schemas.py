@@ -28,6 +28,7 @@ class JobApplicationCreate(BaseModel):
     role: str
     platform: str
     url: Optional[str] = None
+    location: Optional[str] = None
     status: str = "Applied"
     criteria: Optional[str] = None
     notes: Optional[str] = None
@@ -44,6 +45,7 @@ class JobApplicationUpdate(BaseModel):
     role: Optional[str] = None
     platform: Optional[str] = None
     url: Optional[str] = None
+    location: Optional[str] = None
     status: Optional[str] = None
     criteria: Optional[str] = None
     notes: Optional[str] = None
@@ -57,6 +59,7 @@ class JobApplicationOut(BaseModel):
     role: str
     platform: str
     url: Optional[str]
+    location: Optional[str]
     date_applied: datetime
     status: str
     criteria: Optional[str]

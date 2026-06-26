@@ -39,6 +39,8 @@ class JobApplication(Base):
     role = Column(String, nullable=False)
     platform = Column(String, nullable=False)          # e.g. LinkedIn, Naukri, Internshala, Indeed, Other
     url = Column(String, nullable=True)                 # link to the job posting
+    location = Column(String, nullable=True)            # job location, auto-captured by the extension
+                                                           # (e.g. "Gurugram, Haryana, India" or "Remote")
 
     date_applied = Column(DateTime, default=datetime.utcnow)
     status = Column(String, default="Applied")           # Applied / Screening / Interview / Offer / Rejected
