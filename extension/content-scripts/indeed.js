@@ -32,12 +32,14 @@
 function scrapeIndeedJob() {
   const role = findJobTitle();
   const company = findCompanyName();
+  const location = findLocation();
   const description = findDescription();
 
   return {
     platform: "Indeed",
     role: role ? role.trim() : "",
     company: company ? company.trim() : "",
+    location: location ? location.trim() : "",
     full_description: description ? description.trim() : "",
   };
 }
@@ -60,6 +62,14 @@ function findCompanyName() {
   // cards elsewhere on the same page (Indeed shows a feed behind the
   // open job panel).
   const el = document.querySelector('[data-testid="inlineHeader-companyName"]');
+  return el ? el.textContent : null;
+}
+
+function findLocation() {
+  // Verified via the same DevTools inspection that found companyName:
+  // data-testid="inlineHeader-companyLocation" sits right next to it in
+  // the same header area.
+  const el = document.querySelector('[data-testid="inlineHeader-companyLocation"]');
   return el ? el.textContent : null;
 }
 
