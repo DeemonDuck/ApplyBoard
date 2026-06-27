@@ -25,10 +25,19 @@
  *     scraper's selector too
  *   - Description: Internshala runs the JD through their own AI and
  *     shows a structured summary (Role Overview / Requirements /
- *     Additional Information) inside #ai-summary-container, rather than
- *     one raw text blob. We capture this whole container's text as one
- *     block for full_description - it's actually more useful pre-
- *     structured than raw text would be for later parsing.
+ *     Additional Information) inside #ai_summary-container (confirmed
+ *     via console sweep - it's a MIX of underscore and hyphen, not
+ *     consistently one or the other). We capture this whole container's
+ *     text as one block for full_description.
+ *
+ *     CONFIRMED VIA LIVE TESTING (27 June 2026): this container exists
+ *     in the DOM the instant the modal opens, but starts out holding
+ *     only the "About the internship / Summarized by AI" header - the
+ *     actual Role Overview/Requirements text streams in asynchronously
+ *     a short time after. Reading it immediately on modal-open returns
+ *     header-only text. findDescription() below polls every 200ms for
+ *     up to 5s, waiting until the text is long enough to be the real
+ *     summary rather than just the header.
  *   - Location: a <div class="row-1-item locations"> containing the
  *     city name (e.g. "Hyderabad"). Confirmed via DevTools AND matches
  *     the selector used in an earlier Playwright scraper of this same
@@ -38,7 +47,7 @@
  * find #easy_apply_modal, and check what's changed inside it.
  */
 
-function scrapeInternshalaJob() {
+async function scrapeInternshalaJob() {
   const modal = document.querySelector("#easy_apply_modal");
 
   // If the modal isn't open (e.g. you're just browsing the list, haven't
@@ -52,7 +61,8 @@ function scrapeInternshalaJob() {
   const role = findJobTitle(modal);
   const company = findCompanyName(modal);
   const location = findLocation(modal);
-  const description = findDescription(modal);
+  // Description needs to be awaited - see findDescription's polling logic.
+  const description = await findDescription(modal);
 
   return {
     platform: "Internshala",
@@ -80,17 +90,60 @@ function findLocation(modal) {
   return el ? el.textContent : null;
 }
 
-function findDescription(modal) {
-  // The AI-summarized container holds Role Overview, Requirements, and
-  // Additional Information as separate sections - we grab the whole
-  // thing as one text block rather than parsing each section out, since
-  // the later offline-LLM step can handle structure parsing itself.
-  const el = modal.querySelector("#ai-summary-container");
+// Small helper: pause execution for `ms` milliseconds without blocking
+// the rest of the page. `await sleep(200)` just waits 200ms then moves on.
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+// BUG FOUND (27 June 2026): the #ai_summary-container element exists in
+// the DOM immediately when the modal opens, but Internshala streams the
+// actual Role Overview/Requirements text into it asynchronously - so
+// reading it right away only gets the "About the internship / Summarized
+// by AI" header, never the real content. A wrong selector was NOT the
+// problem here; the timing was.
+//
+// Fix: poll the container every 200ms, up to 5 seconds total (25 tries).
+// Once the text is longer than ~50 characters (the header alone is much
+// shorter than that), we treat it as "real content has loaded" and
+// return it. If 5 seconds pass and it never grows past the header, we
+// give up and return whatever's there (better than hanging forever).
+async function findDescription(modal) {
+  const MAX_ATTEMPTS = 25; // 25 * 200ms = 5 seconds total
+  const MIN_CONTENT_LENGTH = 50; // header alone is well under this
+
+  for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
+    const el = modal.querySelector("#ai_summary-container");
+    if (el && el.textContent.trim().length > MIN_CONTENT_LENGTH) {
+      return el.textContent;
+    }
+    await sleep(200);
+  }
+
+  // Ran out of attempts - return whatever's there (could be header-only
+  // text, or null if the container never appeared at all), rather than
+  // silently returning nothing and giving no clue why.
+  const el = modal.querySelector("#ai_summary-container");
   return el ? el.textContent : null;
 }
 
+// IMPORTANT: this listener used to call scrapeInternshalaJob() and
+// sendResponse() synchronously in the same line. Now that
+// scrapeInternshalaJob is async (because findDescription needs to poll
+// and wait), we have to:
+//   1. Call it, then call sendResponse() inside the .then() once the
+//      promise actually resolves (not before).
+//   2. Return `true` from the listener itself. This is a Chrome
+//      extension-specific requirement - by default, Chrome assumes a
+//      message listener is done as soon as it returns, and immediately
+//      closes the communication channel. Returning `true` tells Chrome
+//      "I'm not done yet, keep the channel open, I'll call sendResponse
+//      later" - without this, the popup's listener would have nothing
+//      waiting for it and chrome.tabs.sendMessage would hang or return
+//      undefined.
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message.type === "GET_JOB_DATA") {
-    sendResponse(scrapeInternshalaJob());
+    scrapeInternshalaJob().then(sendResponse);
+    return true;
   }
 });
