@@ -35,7 +35,7 @@
       "run_at": "document_idle"
     },
     {
-      "matches": ["https://internshala.com/job/*", "https://internshala.com/jobs/*"],
+      "matches": ["https://internshala.com/internships/*"],
       "js": ["content-scripts/internshala.js"],
       "run_at": "document_idle"
     },
