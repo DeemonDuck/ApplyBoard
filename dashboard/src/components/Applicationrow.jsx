@@ -10,19 +10,6 @@ function daysSince(dateString) {
   return `${days} days ago`;
 }
 
-/**
- * A single application as a thin horizontal row (Notion-database-row
- * style), replacing the old card. Columns: company, role, location,
- * notes preview, days since applied, status dropdown.
- *
- * The status dropdown is the mechanism that moves a row between
- * sections - selecting a new value calls onStatusChange, which the
- * parent uses to PATCH the backend and re-fetch, so the row re-renders
- * under its new section automatically (no drag-and-drop logic needed).
- *
- * Clicking anywhere else on the row opens the full edit modal, same as
- * the old card's click behavior.
- */
 export default function ApplicationRow({ application, onRowClick, onStatusChange }) {
   const [changingStatus, setChangingStatus] = useState(false);
 
@@ -37,6 +24,11 @@ export default function ApplicationRow({ application, onRowClick, onStatusChange
     }
   }
 
+  const daysNum = Math.floor((new Date() - new Date(application.date_applied)) / (1000 * 60 * 60 * 24));
+  const daysText = daysSince(application.date_applied);
+  const daysColor = daysNum <= 3 ? "var(--status-applied)" : daysNum <= 14 ? "var(--status-interview)" : "var(--paper-dim)";
+  const statusColor = STATUSES.find((s) => s.key === application.status)?.color || "transparent";
+
   return (
     <div
       role="button"
@@ -45,6 +37,7 @@ export default function ApplicationRow({ application, onRowClick, onStatusChange
       onKeyDown={(e) => {
         if (e.key === "Enter") onRowClick(application);
       }}
+      className="app-row"
       style={{
         display: "grid",
         gridTemplateColumns: "1.2fr 1.4fr 1fr 1.6fr 110px 160px",
@@ -53,36 +46,58 @@ export default function ApplicationRow({ application, onRowClick, onStatusChange
         padding: "var(--space-3) var(--space-4)",
         borderBottom: "1px solid var(--ink-line)",
         cursor: "pointer",
+        borderLeft: `3px solid ${statusColor}`,
       }}
     >
-      <div style={{ fontWeight: 600 }}>{application.company}</div>
+      <div style={{ fontWeight: 600, color: "var(--paper)" }}>{application.company}</div>
 
-      <div>{application.role}</div>
+      <div style={{ color: "var(--paper-dim)" }}>{application.role}</div>
 
-      <div>{application.location || "—"}</div>
+      <div style={{ color: "var(--paper-faint)", fontSize: "13px" }}>{application.location || "—"}</div>
 
       <div
         style={{
           overflow: "hidden",
           textOverflow: "ellipsis",
           whiteSpace: "nowrap",
+          color: "var(--paper-faint)",
+          fontSize: "13px",
         }}
       >
         {application.notes || "—"}
       </div>
 
-      <div>{daysSince(application.date_applied)}</div>
+      <div
+        style={{
+          color: daysColor,
+          fontSize: "12px",
+          fontFamily: "var(--font-mono)",
+          letterSpacing: "0.02em",
+        }}
+      >
+        {daysText}
+      </div>
 
-      {/* stopPropagation so clicking/changing the dropdown doesn't also
-          trigger the row's onClick (which opens the full edit modal) */}
       <div onClick={(e) => e.stopPropagation()}>
         <select
           value={application.status}
           onChange={handleStatusChange}
           disabled={changingStatus}
+          style={{
+            background: "var(--ink)",
+            color: statusColor,
+            border: "1px solid var(--ink-line)",
+            borderRadius: "var(--radius-sm)",
+            padding: "6px 8px",
+            fontSize: "12px",
+            fontFamily: "var(--font-body)",
+            cursor: "pointer",
+            width: "100%",
+            outline: "none",
+          }}
         >
           {STATUSES.map((s) => (
-            <option key={s.key} value={s.key}>
+            <option key={s.key} value={s.key} style={{ background: "var(--ink-raised)", color: "var(--paper)" }}>
               {s.label}
             </option>
           ))}
