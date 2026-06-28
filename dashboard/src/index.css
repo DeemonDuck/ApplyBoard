@@ -1,31 +1,32 @@
+@import url('https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,600;1,9..144,400&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap');
+
 /* ============================================================
    DESIGN TOKENS
-   The "ledger" concept: this is a record book for your job hunt,
-   not a generic SaaS dashboard. Navy/ink base, warm signal colors
-   for status, serif display for headers (feels like a ledger
-   title), grotesk for data density, mono for numbers/stats.
+   Botanical growth chart: a garden ledger for your job hunt.
+   Deep forest floor base, living growth-stage colors, serif
+   display for organic headers, grotesk for data, mono for stats.
    ============================================================ */
 
 :root {
-  /* Base palette */
-  --ink: #10172A;          /* main background */
-  --ink-raised: #161E36;   /* card / panel surfaces, one step lighter */
-  --ink-line: #28324F;     /* hairline borders */
-  --paper: #F3F1EA;        /* primary text on dark */
-  --paper-dim: #A7ADC2;    /* secondary text */
-  --paper-faint: #6B7589;  /* tertiary / placeholder text */
+  /* Base palette — Humus and parchment */
+  --ink: #1E2A1E;          /* deep forest floor — main background */
+  --ink-raised: #2A3A2A;   /* raised bed soil — card / panel surfaces */
+  --ink-line: #3A4A3A;     /* organic borders — hairline dividers */
+  --paper: #F0EBE3;        /* warm parchment — primary text */
+  --paper-dim: #C4BDB3;    /* weathered parchment — secondary text */
+  --paper-faint: #8A9A8A;  /* moss shadow — tertiary / placeholder */
 
-  /* Status signal colors */
-  --status-applied: #6B7589;     /* slate - neutral, just submitted */
-  --status-screening: #5E8FB8;   /* steel blue - under review */
-  --status-interview: #E8A33D;   /* amber - active, alert, momentum */
-  --status-offer: #5FA887;       /* sage green - success, calm */
-  --status-rejected: #B85C4A;    /* muted rust - data, not alarm */
+  /* Growth stage signal colors */
+  --status-applied: #9BA88E;     /* seed — olive sage, full of potential */
+  --status-screening: #6BA88E;   /* sprout — fresh teal, first signs of life */
+  --status-interview: #D4A33D;   /* budding — warm amber, energy building */
+  --status-offer: #5E8F6E;       /* bloom — moss green, vibrant life */
+  --status-rejected: #A66B5B;    /* wilted — terracotta, natural cycle */
 
   /* Type */
   --font-display: 'Fraunces', serif;
   --font-body: 'Inter', sans-serif;
-  --font-mono: 'JetBrains Mono', monospace;
+  --font-mono: 'IBM Plex Mono', monospace;
 
   /* Spacing scale */
   --space-1: 4px;
@@ -37,7 +38,7 @@
   --space-7: 48px;
   --space-8: 64px;
 
-  /* Radius - small, not the generic 12-16px rounded-everything look */
+  /* Radius */
   --radius-sm: 4px;
   --radius-md: 6px;
 
@@ -55,6 +56,8 @@ html, body {
 
 body {
   background: var(--ink);
+  background-image: radial-gradient(ellipse at 50% 0%, rgba(94, 143, 110, 0.07) 0%, transparent 55%);
+  background-attachment: fixed;
   color: var(--paper);
   font-family: var(--font-body);
   -webkit-font-smoothing: antialiased;
@@ -63,10 +66,6 @@ body {
 
 #root {
   min-height: 100vh;
-  /* env(safe-area-inset-*) is 0 on devices without a notch/home-indicator,
-     so this is harmless everywhere - only matters once installed as a
-     standalone PWA on iPad/iPhone, where Safari's own chrome (which
-     normally handles this) is gone. */
   padding-top: env(safe-area-inset-top);
   padding-bottom: env(safe-area-inset-bottom);
   padding-left: env(safe-area-inset-left);
@@ -89,7 +88,7 @@ input, textarea, select {
   font-family: var(--font-body);
 }
 
-/* Visible keyboard focus everywhere - accessibility floor */
+/* Visible keyboard focus everywhere */
 :focus-visible {
   outline: 2px solid var(--status-interview);
   outline-offset: 2px;
@@ -116,4 +115,50 @@ input, textarea, select {
 }
 ::-webkit-scrollbar-thumb:hover {
   background: var(--paper-faint);
+}
+
+/* ============================================================
+   ANIMATIONS & INTERACTIONS
+   ============================================================ */
+
+@keyframes ring-breathe {
+  0%, 100% { opacity: 0.4; }
+  50% { opacity: 0.75; }
+}
+
+@keyframes slow-rotate {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+.growth-rings-svg {
+  animation: slow-rotate 120s linear infinite;
+}
+
+.growth-ring {
+  animation: ring-breathe 6s ease-in-out infinite;
+  transform-origin: center;
+}
+
+/* Application row — subtle highlight like dew on leaves */
+.app-row {
+  transition: background 0.15s ease;
+}
+
+.app-row:hover {
+  background: rgba(240, 235, 227, 0.03);
+}
+
+/* Button hover lift */
+.btn-plant {
+  transition: all 0.2s ease;
+}
+
+.btn-plant:hover {
+  transform: translateY(-1px);
+  filter: brightness(1.1);
+}
+
+.btn-plant:active {
+  transform: translateY(0);
 }
