@@ -12,10 +12,6 @@ const EMPTY_FORM = {
   notes: "",
 };
 
-/**
- * Modal used for both creating a new application and editing an existing one.
- * If `existing` is passed, the form pre-fills and shows a Delete option.
- */
 export default function ApplicationModal({ existing, onClose, onSave, onDelete }) {
   const [form, setForm] = useState(EMPTY_FORM);
   const [saving, setSaving] = useState(false);
@@ -64,12 +60,13 @@ export default function ApplicationModal({ existing, onClose, onSave, onDelete }
       style={{
         position: "fixed",
         inset: 0,
-        background: "rgba(8, 11, 22, 0.7)",
+        background: "rgba(8, 15, 8, 0.75)",
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
         zIndex: 100,
         padding: "var(--space-4)",
+        backdropFilter: "blur(4px)",
       }}
       onClick={onClose}
     >
@@ -85,9 +82,10 @@ export default function ApplicationModal({ existing, onClose, onSave, onDelete }
           maxWidth: "480px",
           maxHeight: "85vh",
           overflowY: "auto",
+          boxShadow: "0 20px 60px rgba(0,0,0,0.4)",
         }}
       >
-        <h2 style={{ fontSize: "20px", marginBottom: "var(--space-5)" }}>
+        <h2 style={{ fontSize: "20px", marginBottom: "var(--space-5)", color: "var(--paper)" }}>
           {existing ? "Edit application" : "Log a new application"}
         </h2>
 
@@ -185,6 +183,7 @@ export default function ApplicationModal({ existing, onClose, onSave, onDelete }
           <button
             type="submit"
             disabled={saving}
+            className="btn-plant"
             style={{
               flex: 1,
               background: "var(--status-interview)",
@@ -194,6 +193,7 @@ export default function ApplicationModal({ existing, onClose, onSave, onDelete }
               padding: "10px 16px",
               fontWeight: 600,
               fontSize: "14px",
+              opacity: saving ? 0.7 : 1,
             }}
           >
             {saving ? "Saving..." : existing ? "Save changes" : "Add application"}
@@ -208,6 +208,8 @@ export default function ApplicationModal({ existing, onClose, onSave, onDelete }
               borderRadius: "var(--radius-sm)",
               padding: "10px 16px",
               fontSize: "14px",
+              cursor: "pointer",
+              transition: "all 0.2s ease",
             }}
           >
             Cancel
@@ -226,6 +228,8 @@ export default function ApplicationModal({ existing, onClose, onSave, onDelete }
               border: "none",
               fontSize: "12px",
               padding: "6px",
+              cursor: "pointer",
+              transition: "opacity 0.2s ease",
             }}
           >
             Delete this application
@@ -265,4 +269,5 @@ const inputStyle = {
   color: "var(--paper)",
   fontSize: "14px",
   fontFamily: "var(--font-body)",
+  outline: "none",
 };
