@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import { api } from "./api";
 import { STATUSES } from "./constants";
 import StatsHeader from "./components/StatsHeader";
-import PipelineColumn from "./components/PipelineColumn";
+import StatusSection from "./components/StatusSection";
 import ApplicationModal from "./components/ApplicationModal";
 
 export default function App() {
@@ -57,6 +57,16 @@ export default function App() {
   async function handleDelete(id) {
     await api.remove(id);
     setModalOpen(false);
+    await refresh();
+  }
+
+  // Called when a row's status dropdown changes. Just a thin wrapper
+  // around the existing PATCH endpoint - the row itself moves to its
+  // new section automatically on the next render, since sections filter
+  // by status from the same `applications` array. No drag-and-drop
+  // logic needed, unlike the old kanban board.
+  async function handleStatusChange(id, newStatus) {
+    await api.update(id, { status: newStatus });
     await refresh();
   }
 
@@ -116,20 +126,14 @@ export default function App() {
       {loading && !error ? (
         <p style={{ color: "var(--paper-faint)" }}>Loading your ledger...</p>
       ) : !error ? (
-        <div
-          style={{
-            display: "flex",
-            gap: "var(--space-5)",
-            overflowX: "auto",
-            paddingBottom: "var(--space-4)",
-          }}
-        >
+        <div>
           {STATUSES.map((status) => (
-            <PipelineColumn
+            <StatusSection
               key={status.key}
               status={status}
               applications={applications.filter((a) => a.status === status.key)}
-              onCardClick={openEditModal}
+              onRowClick={openEditModal}
+              onStatusChange={handleStatusChange}
             />
           ))}
         </div>
