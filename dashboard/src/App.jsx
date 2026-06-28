@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { api } from "./api";
-import { STATUSES } from "./constants";
+import { STATUSES, STATUS_MAP } from "./constants";
 import StatsHeader from "./components/StatsHeader";
 import StatusSection from "./components/StatusSection";
 import ApplicationModal from "./components/ApplicationModal";
@@ -13,6 +13,19 @@ export default function App() {
 
   const [modalOpen, setModalOpen] = useState(false);
   const [editingApp, setEditingApp] = useState(null); // null = creating new
+
+  // ACCORDION STATE: which single status section is currently open.
+  // Lifted up here (rather than living inside StatusSection) so opening
+  // one section can collapse whichever was open before - only one
+  // status is ever expanded at a time. Defaults to "Applied" so the
+  // page isn't fully collapsed on first load.
+  const [expandedStatus, setExpandedStatus] = useState("Applied");
+
+  function toggleStatus(statusKey) {
+    // Clicking the already-open section's header collapses it (back to
+    // nothing open); clicking a different one switches to that one.
+    setExpandedStatus((current) => (current === statusKey ? null : statusKey));
+  }
 
   const refresh = useCallback(async () => {
     setLoading(true);
@@ -60,6 +73,11 @@ export default function App() {
     await refresh();
   }
 
+  // Called when a row's status dropdown changes. Just a thin wrapper
+  // around the existing PATCH endpoint - the row itself moves to its
+  // new section automatically on the next render, since sections filter
+  // by status from the same `applications` array. No drag-and-drop
+  // logic needed, unlike the old kanban board.
   async function handleStatusChange(id, newStatus) {
     await api.update(id, { status: newStatus });
     await refresh();
@@ -78,21 +96,13 @@ export default function App() {
         }}
       >
         <div>
-          <div style={{ display: "flex", alignItems: "center", gap: "var(--space-3)", marginBottom: "var(--space-2)" }}>
-            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" style={{ opacity: 0.8 }}>
-              <path d="M12 22C12 22 12 16 12 12C12 8 8 6 8 6C8 6 10 10 12 12C14 10 16 6 16 6C16 6 12 8 12 12" 
-                stroke="var(--status-offer)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" fill="none"/>
-              <circle cx="12" cy="5" r="2" fill="var(--status-applied)" opacity="0.6"/>
-            </svg>
-            <h1 style={{ fontSize: "28px" }}>Job Tracker</h1>
-          </div>
+          <h1 style={{ fontSize: "28px" }}>Job Tracker</h1>
           <p style={{ color: "var(--paper-dim)", fontSize: "14px", margin: "4px 0 0" }}>
             Every application, every platform, one ledger.
           </p>
         </div>
         <button
           onClick={openCreateModal}
-          className="btn-plant"
           style={{
             background: "var(--status-interview)",
             color: "var(--ink)",
@@ -114,7 +124,7 @@ export default function App() {
         <div
           style={{
             color: "var(--status-rejected)",
-            background: "rgba(166, 107, 91, 0.1)",
+            background: "rgba(184, 92, 74, 0.1)",
             border: "1px solid var(--status-rejected)",
             borderRadius: "var(--radius-md)",
             padding: "var(--space-4)",
@@ -127,14 +137,53 @@ export default function App() {
       )}
 
       {loading && !error ? (
-        <p style={{ color: "var(--paper-faint)" }}>Tending the garden...</p>
+        <p style={{ color: "var(--paper-faint)" }}>Loading your ledger...</p>
       ) : !error ? (
-        <div>
+        <div style={{ position: "relative" }}>
+          {/*
+            BACKGROUND IMAGE LAYER
+            ------------------------
+            Renders behind the sections, showing the growth-stage image
+            matching whichever status is currently expanded (or nothing,
+            if all sections are collapsed). The image path comes from
+            each status's `backgroundImage` field in constants.js.
+
+            >>> TO ADD YOUR IMAGES: drop 5 files into
+            dashboard/public/growth-stages/ named exactly:
+                applied.png, screening.png, interview.png, offer.png, rejected.png
+            (or update the paths in constants.js to match whatever
+            filenames/extensions you actually use - .png isn't required,
+            .jpg/.webp work the same way, just change the extension in
+            constants.js's `backgroundImage` values to match).
+
+            Currently this renders nothing if the matching file doesn't
+            exist yet (broken image just doesn't show, no crash) - so
+            it's safe to leave this wired up before the images exist.
+          */}
+          {expandedStatus && (
+            <div
+              aria-hidden="true"
+              style={{
+                position: "fixed",
+                inset: 0,
+                zIndex: -1,
+                backgroundImage: `url(${STATUS_MAP[expandedStatus]?.backgroundImage})`,
+                backgroundSize: "cover",
+                backgroundPosition: "center",
+                opacity: 0.25,
+                transition: "background-image 0.4s ease",
+                pointerEvents: "none",
+              }}
+            />
+          )}
+
           {STATUSES.map((status) => (
             <StatusSection
               key={status.key}
               status={status}
               applications={applications.filter((a) => a.status === status.key)}
+              isExpanded={expandedStatus === status.key}
+              onToggle={() => toggleStatus(status.key)}
               onRowClick={openEditModal}
               onStatusChange={handleStatusChange}
             />

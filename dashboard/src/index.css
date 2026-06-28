@@ -5,6 +5,13 @@
    Botanical growth chart: a garden ledger for your job hunt.
    Deep forest floor base, living growth-stage colors, serif
    display for organic headers, grotesk for data, mono for stats.
+
+   NOTE: the color palette and font choices here are the approved
+   botanical theme - intentional. What got REMOVED from an earlier
+   version of this file was a block of CSS @keyframes animations
+   (seed-pulse, sprout-grow, petal-bloom, etc.) that powered small
+   decorative SVG icons - those are gone along with the component
+   that used them, since real background photos are replacing them.
    ============================================================ */
 
 :root {
@@ -56,8 +63,6 @@ html, body {
 
 body {
   background: var(--ink);
-  background-image: radial-gradient(ellipse at 50% 0%, rgba(94, 143, 110, 0.07) 0%, transparent 55%);
-  background-attachment: fixed;
   color: var(--paper);
   font-family: var(--font-body);
   -webkit-font-smoothing: antialiased;
@@ -66,6 +71,10 @@ body {
 
 #root {
   min-height: 100vh;
+  /* env(safe-area-inset-*) is 0 on devices without a notch/home-indicator,
+     so this is harmless everywhere - only matters once installed as a
+     standalone PWA on iPad/iPhone, where Safari's own chrome (which
+     normally handles this) is gone. */
   padding-top: env(safe-area-inset-top);
   padding-bottom: env(safe-area-inset-bottom);
   padding-left: env(safe-area-inset-left);
@@ -88,7 +97,7 @@ input, textarea, select {
   font-family: var(--font-body);
 }
 
-/* Visible keyboard focus everywhere */
+/* Visible keyboard focus everywhere - accessibility floor */
 :focus-visible {
   outline: 2px solid var(--status-interview);
   outline-offset: 2px;
@@ -115,50 +124,4 @@ input, textarea, select {
 }
 ::-webkit-scrollbar-thumb:hover {
   background: var(--paper-faint);
-}
-
-/* ============================================================
-   ANIMATIONS & INTERACTIONS
-   ============================================================ */
-
-@keyframes ring-breathe {
-  0%, 100% { opacity: 0.4; }
-  50% { opacity: 0.75; }
-}
-
-@keyframes slow-rotate {
-  from { transform: rotate(0deg); }
-  to { transform: rotate(360deg); }
-}
-
-.growth-rings-svg {
-  animation: slow-rotate 120s linear infinite;
-}
-
-.growth-ring {
-  animation: ring-breathe 6s ease-in-out infinite;
-  transform-origin: center;
-}
-
-/* Application row — subtle highlight like dew on leaves */
-.app-row {
-  transition: background 0.15s ease;
-}
-
-.app-row:hover {
-  background: rgba(240, 235, 227, 0.03);
-}
-
-/* Button hover lift */
-.btn-plant {
-  transition: all 0.2s ease;
-}
-
-.btn-plant:hover {
-  transform: translateY(-1px);
-  filter: brightness(1.1);
-}
-
-.btn-plant:active {
-  transform: translateY(0);
 }
