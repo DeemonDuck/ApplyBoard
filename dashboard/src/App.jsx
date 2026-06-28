@@ -60,11 +60,6 @@ export default function App() {
     await refresh();
   }
 
-  // Called when a row's status dropdown changes. Just a thin wrapper
-  // around the existing PATCH endpoint - the row itself moves to its
-  // new section automatically on the next render, since sections filter
-  // by status from the same `applications` array. No drag-and-drop
-  // logic needed, unlike the old kanban board.
   async function handleStatusChange(id, newStatus) {
     await api.update(id, { status: newStatus });
     await refresh();
@@ -83,13 +78,21 @@ export default function App() {
         }}
       >
         <div>
-          <h1 style={{ fontSize: "28px" }}>Job Tracker</h1>
+          <div style={{ display: "flex", alignItems: "center", gap: "var(--space-3)", marginBottom: "var(--space-2)" }}>
+            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" style={{ opacity: 0.8 }}>
+              <path d="M12 22C12 22 12 16 12 12C12 8 8 6 8 6C8 6 10 10 12 12C14 10 16 6 16 6C16 6 12 8 12 12" 
+                stroke="var(--status-offer)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" fill="none"/>
+              <circle cx="12" cy="5" r="2" fill="var(--status-applied)" opacity="0.6"/>
+            </svg>
+            <h1 style={{ fontSize: "28px" }}>Job Tracker</h1>
+          </div>
           <p style={{ color: "var(--paper-dim)", fontSize: "14px", margin: "4px 0 0" }}>
             Every application, every platform, one ledger.
           </p>
         </div>
         <button
           onClick={openCreateModal}
+          className="btn-plant"
           style={{
             background: "var(--status-interview)",
             color: "var(--ink)",
@@ -111,7 +114,7 @@ export default function App() {
         <div
           style={{
             color: "var(--status-rejected)",
-            background: "rgba(184, 92, 74, 0.1)",
+            background: "rgba(166, 107, 91, 0.1)",
             border: "1px solid var(--status-rejected)",
             borderRadius: "var(--radius-md)",
             padding: "var(--space-4)",
@@ -124,7 +127,7 @@ export default function App() {
       )}
 
       {loading && !error ? (
-        <p style={{ color: "var(--paper-faint)" }}>Loading your ledger...</p>
+        <p style={{ color: "var(--paper-faint)" }}>Tending the garden...</p>
       ) : !error ? (
         <div>
           {STATUSES.map((status) => (
