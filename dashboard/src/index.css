@@ -63,6 +63,14 @@ body {
 
 #root {
   min-height: 100vh;
+  /* env(safe-area-inset-*) is 0 on devices without a notch/home-indicator,
+     so this is harmless everywhere - only matters once installed as a
+     standalone PWA on iPad/iPhone, where Safari's own chrome (which
+     normally handles this) is gone. */
+  padding-top: env(safe-area-inset-top);
+  padding-bottom: env(safe-area-inset-bottom);
+  padding-left: env(safe-area-inset-left);
+  padding-right: env(safe-area-inset-right);
 }
 
 h1, h2, h3 {
