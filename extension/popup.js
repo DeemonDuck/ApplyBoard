@@ -11,7 +11,7 @@
  * but keeps the extension dependency-free.
  */
 
-const BASE_URL = "http://127.0.0.1:8000";
+const BASE_URL = "https://applyboard-rmxl.onrender.com";
 
 const form = document.getElementById("capture-form");
 const statusMsg = document.getElementById("status-msg");
