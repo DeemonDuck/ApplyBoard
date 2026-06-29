@@ -15,7 +15,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from sqlalchemy.orm import Session
 from typing import Optional, List
-import jwt
+import httpx
 
 from database import init_db, get_db, JobApplication
 from schemas import JobApplicationCreate, JobApplicationUpdate, JobApplicationOut, VALID_STATUSES
@@ -34,21 +34,23 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-SUPABASE_JWT_SECRET = "yPVYU6Ax7LsASWQwePAAiFcjI7TeHxJkFu58AO5UC8TmUYnv2TArcekVIHN4/JJbGUaYp3O5lmkz8Ar0lEYGw=="
+SUPABASE_URL = "https://dejqmsopgacdwpsftpfk.supabase.co"
+SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRlanFtc29wZ2FjZHdwc2Z0cGZrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODI3MTk1OTIsImV4cCI6MjA5ODI5NTU5Mn0.7T8rXwDP0-6Oy6eMrL1McnhDCp8WPUx9-_QJGuLd1Hc"
 
 bearer_scheme = HTTPBearer()
 
-def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(bearer_scheme)) -> str:
-    try:
-        payload = jwt.decode(
-            credentials.credentials,
-            SUPABASE_JWT_SECRET,
-            algorithms=["HS256"],
-            options={"verify_aud": False},
+async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(bearer_scheme)) -> str:
+    async with httpx.AsyncClient() as client:
+        resp = await client.get(
+            f"{SUPABASE_URL}/auth/v1/user",
+            headers={
+                "Authorization": f"Bearer {credentials.credentials}",
+                "apikey": SUPABASE_ANON_KEY,
+            },
         )
-        return payload["sub"]  # Supabase user UUID
-    except Exception:
+    if resp.status_code != 200:
         raise HTTPException(status_code=401, detail="Invalid or expired token")
+    return resp.json()["id"]  # Supabase user UUID
 
 @app.on_event("startup")
 def on_startup():
