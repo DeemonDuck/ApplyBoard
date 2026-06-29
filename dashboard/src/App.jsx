@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { api } from "./api";
-import { STATUSES, STATUS_MAP } from "./constants";
+import { STATUSES } from "./constants";
 import StatsHeader from "./components/StatsHeader";
 import StatusSection from "./components/StatusSection";
 import ApplicationModal from "./components/ApplicationModal";
@@ -12,18 +12,11 @@ export default function App() {
   const [error, setError] = useState(null);
 
   const [modalOpen, setModalOpen] = useState(false);
-  const [editingApp, setEditingApp] = useState(null); // null = creating new
+  const [editingApp, setEditingApp] = useState(null);
 
-  // ACCORDION STATE: which single status section is currently open.
-  // Lifted up here (rather than living inside StatusSection) so opening
-  // one section can collapse whichever was open before - only one
-  // status is ever expanded at a time. Defaults to "Applied" so the
-  // page isn't fully collapsed on first load.
   const [expandedStatus, setExpandedStatus] = useState("Applied");
 
   function toggleStatus(statusKey) {
-    // Clicking the already-open section's header collapses it (back to
-    // nothing open); clicking a different one switches to that one.
     setExpandedStatus((current) => (current === statusKey ? null : statusKey));
   }
 
@@ -73,11 +66,6 @@ export default function App() {
     await refresh();
   }
 
-  // Called when a row's status dropdown changes. Just a thin wrapper
-  // around the existing PATCH endpoint - the row itself moves to its
-  // new section automatically on the next render, since sections filter
-  // by status from the same `applications` array. No drag-and-drop
-  // logic needed, unlike the old kanban board.
   async function handleStatusChange(id, newStatus) {
     await api.update(id, { status: newStatus });
     await refresh();
@@ -85,6 +73,39 @@ export default function App() {
 
   return (
     <div style={{ maxWidth: "1400px", margin: "0 auto", padding: "var(--space-6) var(--space-5)" }}>
+
+      {/* Background layer — all images + video pre-rendered, crossfade via opacity */}
+      <div aria-hidden="true" style={{ position: "fixed", inset: 0, zIndex: -1, pointerEvents: "none" }}>
+
+        {/* Intro video — fades out when a status is selected */}
+        <video
+          autoPlay loop muted playsInline
+          style={{
+            position: "absolute", inset: 0,
+            width: "100%", height: "100%", objectFit: "cover",
+            opacity: expandedStatus ? 0 : 1,
+            transition: "opacity 0.6s ease",
+          }}
+        >
+          <source src="/growth-stages/intro.mp4" type="video/mp4" />
+        </video>
+
+        {/* One div per status — only the active one fades in, others stay at opacity 0 */}
+        {STATUSES.map((s) => (
+          <div
+            key={s.key}
+            style={{
+              position: "absolute", inset: 0,
+              backgroundImage: `url(${s.backgroundImage})`,
+              backgroundSize: "cover",
+              backgroundPosition: "center",
+              opacity: expandedStatus === s.key ? 1 : 0,
+              transition: "opacity 0.6s ease",
+            }}
+          />
+        ))}
+      </div>
+
       <header
         style={{
           display: "flex",
@@ -139,44 +160,7 @@ export default function App() {
       {loading && !error ? (
         <p style={{ color: "var(--paper-faint)" }}>Loading your ledger...</p>
       ) : !error ? (
-        <div style={{ position: "relative" }}>
-          {/*
-            BACKGROUND IMAGE LAYER
-            ------------------------
-            Renders behind the sections, showing the growth-stage image
-            matching whichever status is currently expanded (or nothing,
-            if all sections are collapsed). The image path comes from
-            each status's `backgroundImage` field in constants.js.
-
-            >>> TO ADD YOUR IMAGES: drop 5 files into
-            dashboard/public/growth-stages/ named exactly:
-                applied.png, screening.png, interview.png, offer.png, rejected.png
-            (or update the paths in constants.js to match whatever
-            filenames/extensions you actually use - .png isn't required,
-            .jpg/.webp work the same way, just change the extension in
-            constants.js's `backgroundImage` values to match).
-
-            Currently this renders nothing if the matching file doesn't
-            exist yet (broken image just doesn't show, no crash) - so
-            it's safe to leave this wired up before the images exist.
-          */}
-          {expandedStatus && (
-            <div
-              aria-hidden="true"
-              style={{
-                position: "fixed",
-                inset: 0,
-                zIndex: -1,
-                backgroundImage: `url(${STATUS_MAP[expandedStatus]?.backgroundImage})`,
-                backgroundSize: "cover",
-                backgroundPosition: "center",
-                opacity: 0.25,
-                transition: "background-image 0.4s ease",
-                pointerEvents: "none",
-              }}
-            />
-          )}
-
+        <div>
           {STATUSES.map((status) => (
             <StatusSection
               key={status.key}

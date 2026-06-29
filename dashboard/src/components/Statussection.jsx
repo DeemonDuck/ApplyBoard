@@ -21,11 +21,14 @@ export default function StatusSection({ status, applications, isExpanded, onTogg
           alignItems: "center",
           gap: "var(--space-2)",
           width: "100%",
-          background: "transparent",
+          background: "rgba(20, 30, 20, 0.6)",
+          backdropFilter: "blur(6px)",
+          WebkitBackdropFilter: "blur(6px)",
           border: "none",
-          padding: "var(--space-2) var(--space-1)",
+          padding: "var(--space-2) var(--space-3)",
           borderBottom: `2px solid ${status.color}`,
           marginBottom: isExpanded ? "var(--space-2)" : 0,
+          borderRadius: "var(--radius-sm)",
         }}
       >
         <span style={{ transform: isExpanded ? "rotate(90deg)" : "rotate(0deg)" }}>
@@ -36,7 +39,12 @@ export default function StatusSection({ status, applications, isExpanded, onTogg
       </button>
 
       {isExpanded && (
-        <div>
+        <div style={{
+          background: "rgba(20, 30, 20, 0.6)",
+          backdropFilter: "blur(6px)",
+          WebkitBackdropFilter: "blur(6px)",
+          borderRadius: "var(--radius-sm)",
+        }}>
           {applications.length === 0 ? (
             <div style={{ padding: "var(--space-3) var(--space-4)" }}>
               Nothing here yet
