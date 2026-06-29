@@ -7,11 +7,19 @@
  * one-line change instead of hunting through every component.
  */
 
+import { supabase } from "./supabase";
+
 const BASE_URL = "https://applyboard-rmxl.onrender.com";
 
 async function request(path, options = {}) {
+  const { data: { session } } = await supabase.auth.getSession();
+  const token = session?.access_token;
+
   const res = await fetch(`${BASE_URL}${path}`, {
-    headers: { "Content-Type": "application/json" },
+    headers: {
+      "Content-Type": "application/json",
+      ...(token && { Authorization: `Bearer ${token}` }),
+    },
     ...options,
   });
 
