@@ -14,12 +14,14 @@ from sqlalchemy import create_engine, Column, Integer, String, Text, DateTime
 from sqlalchemy.orm import declarative_base, sessionmaker
 from datetime import datetime
 
-DATABASE_URL = "sqlite:///./job_tracker.db"
+from dotenv import load_dotenv
+load_dotenv()
 
-# check_same_thread=False is needed because FastAPI can handle requests
-# on different threads, but SQLite by default only trusts the thread
-# that created the connection.
-engine = create_engine(DATABASE_URL, connect_args={"check_same_thread": False})
+import os
+
+DATABASE_URL = os.environ.get("DATABASE_URL")  # set this to your Supabase connection string
+
+engine = create_engine(DATABASE_URL)
 
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
