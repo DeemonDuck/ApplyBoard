@@ -1,12 +1,14 @@
-# Job Tracker
+# ApplyBoard — Job Application Tracker
 
-A small tool I built for a problem every job-hunting fresher eventually hits: applying to 50+ jobs across LinkedIn, Naukri, Internshala, and random company portals, then getting a callback and going *"...wait, which one was this again? What did they even ask for?"*
+A tool I built for a problem every job-hunting fresher eventually hits: applying to 50+ jobs across LinkedIn, Naukri, Internshala, and random company portals, then getting a callback and going *"...wait, which one was this again? What did they even ask for?"*
 
-This is that ledger. One place, every application, every platform, current status, and the actual criteria they asked for — so when a recruiter calls, I already know what I said yes to.
+This is that ledger. One place, every application, every platform, current status, and the actual criteria they asked for — so when a recruiter calls, you already know what you said yes to.
+
+**Live app:** [apply-board-two.vercel.app](https://apply-board-two.vercel.app)
 
 ---
 
-## Why this exists (the actual problem)
+## Why this exists
 
 If you've never juggled multiple job applications at once, here's what goes wrong without a tracker:
 
@@ -15,180 +17,221 @@ If you've never juggled multiple job applications at once, here's what goes wron
 - You get rejected somewhere and have no idea what criteria you didn't meet, so you can't course-correct
 - Weeks pass and an application just... sits there, no follow-up, because you forgot it existed
 
-None of this is solved by a spreadsheet you forget to update. It's solved by making logging an application as close to *zero extra effort* as clicking Apply. That's the actual design goal here — not "build a CRUD app," but "build something I'll actually keep using on day 40 of the job hunt."
+None of this is solved by a spreadsheet you forget to update. It's solved by making logging an application as close to *zero extra effort* as clicking Apply.
 
 ---
 
-## What's built so far
-
-This project is being built in stages, on purpose — get one layer solid before adding the next.
+## What's built
 
 | Layer | Status | What it does |
 |---|---|---|
-| **Backend (FastAPI + SQLite)** | ✅ Done, tested | Stores every application: company, role, platform, URL, status, criteria, notes. Full CRUD + filtering + stats. |
-| **Dashboard (React)** | ✅ Done | A visual pipeline view — columns by status (Applied → Screening → Interview → Offer/Rejected), click any card to edit. |
-| **Browser Extension** | ✅ Done, tested | One-click capture while applying — auto-fills company/role/platform on LinkedIn, Naukri, Internshala, Indeed. Manual capture button works on any other site. |
-| **iPad / Mobile access** | ✅ Done | Installable as a home-screen app on iPad via Safari — manifest, icons, and Apple-specific meta tags all wired in. Offline support (service worker) is deferred since it needs HTTPS, which isn't set up yet. |
+| **Backend (FastAPI + PostgreSQL)** | ✅ Deployed on Render | REST API — create/list/update/delete applications, filtering, stats. JWT-authenticated. |
+| **Dashboard (React)** | ✅ Deployed on Vercel | Visual pipeline view by status. Sign in with Google, your data is yours alone. |
+| **Browser Extension** | ✅ Done | One-click capture while applying — auto-fills from LinkedIn, Naukri, Internshala, Indeed. Works on any site via manual button. |
+| **iPad / Mobile** | ✅ Done | Installable as a home-screen PWA on iPad via Safari. Works on the deployed URL directly — no local setup needed. |
+| **Google Auth** | ✅ Done | Each user signs in with Google. All data is scoped to their account — no one else sees your applications. |
+
+---
+
+## Using the live app
+
+No setup needed. Just:
+
+1. Go to [apply-board-two.vercel.app](https://apply-board-two.vercel.app)
+2. Click **Sign in with Google**
+3. Start logging applications
+
+Your data is private to your Google account. Sign out from the top-right when done.
+
+**On iPad:** Open the link in Safari → tap the Share button → **Add to Home Screen**. It installs as a full-screen app.
+
+---
+
+## Deploy your own copy (recommended if you want full ownership)
+
+If you'd rather have your own isolated instance with your own database — nothing shared with anyone — here's the full setup. Everything used here is free tier.
+
+**What you'll need:**
+- GitHub account (to fork the repo)
+- Supabase account (free database + auth)
+- Render account (free backend hosting)
+- Vercel account (free frontend hosting)
+
+**Step 1 — Fork the repo**
+
+Fork [github.com/DeemonDuck/ApplyBoard](https://github.com/DeemonDuck/ApplyBoard) to your own GitHub account.
+
+**Step 2 — Supabase (database + auth)**
+
+1. Create a new project at [supabase.com](https://supabase.com)
+2. Go to **Settings → Database** → copy the **Session pooler** connection string
+3. Go to **Authentication → Providers → Google** → enable it and add your Google OAuth credentials
+4. Note your **Project URL** and **anon public key** from **Settings → API**
+
+Update `dashboard/src/supabase.js` with your own project URL and anon key.
+
+**Step 3 — Backend on Render**
+
+1. Go to [render.com](https://render.com) → New → Web Service → connect your forked repo
+2. Set Root Directory to `backend`, build command `pip install -r requirements.txt`, start command `uvicorn main:app --host 0.0.0.0 --port $PORT`
+3. Add environment variables:
+   - `DATABASE_URL` = your Supabase session pooler connection string
+   - `PYTHON_VERSION` = `3.11.0`
+4. Deploy — note the URL Render gives you (e.g. `https://your-app.onrender.com`)
+
+**Step 4 — Dashboard on Vercel**
+
+1. Update `dashboard/src/api.js` → set `BASE_URL` to your Render backend URL
+2. Go to [vercel.com](https://vercel.com) → New Project → import your forked repo
+3. Set Root Directory to `dashboard` → Deploy
+
+That's it. You now have a fully isolated instance — your own database, your own backend, your own frontend.
+
+---
+
+## Browser Extension
+
+The extension lets you save a job with one click while you're on the posting page, instead of switching to the dashboard manually.
+
+**Setup (Chrome / Edge):**
+1. Download or clone this repo
+2. Go to `chrome://extensions` → turn on **Developer mode**
+3. Click **Load unpacked** → select the `extension/` folder
+4. Make sure you're signed into the dashboard first (the extension talks to the same backend using your session)
+
+Supported sites with auto-fill: LinkedIn, Naukri, Internshala, Indeed. On any other site, use the **Manual capture** button in the popup.
+
+---
+
+## Running locally (for development)
+
+If you want to run everything on your own machine instead of using the live app:
+
+**1. Clone the repo**
+```bash
+git clone https://github.com/DeemonDuck/ApplyBoard.git
+cd ApplyBoard
+```
+
+**2. Backend**
+
+Create `backend/.env`:
+```
+DATABASE_URL=your_postgres_or_supabase_connection_string
+```
+
+```bash
+cd backend
+pip install -r requirements.txt
+uvicorn main:app --reload --port 8000
+```
+
+Visit `http://127.0.0.1:8000/docs` for the interactive API explorer.
+
+**3. Dashboard**
+```bash
+cd dashboard
+npm install
+npm run dev
+```
+
+Dashboard runs at `http://localhost:5173`. Expects the backend on port 8000.
+
+> For local development you'll also need to update `dashboard/src/api.js` to point `BASE_URL` at `http://127.0.0.1:8000`, and `dashboard/src/supabase.js` with your own Supabase project credentials if you want auth to work locally.
 
 ---
 
 ## How the pieces fit together
 
-**Browser Extension** → saves to → **FastAPI Backend** (`localhost:8000`) → reads/writes → **SQLite** (`job_tracker.db`)
+```
+Browser Extension
+      │
+      ▼
+FastAPI Backend (Render) ──── Supabase PostgreSQL
+      ▲
+      │
+React Dashboard (Vercel)
+```
 
-**React Dashboard** → reads/writes → same **FastAPI Backend**
+The extension and dashboard are both just clients of the same backend API. They never talk to each other or touch the database directly. This is why the extension didn't require any dashboard changes when it was added — they're independent.
 
-In plain words: the extension and the dashboard never talk to each other
-directly, and neither one touches the database file directly either.
-Everything goes through the one backend, which is the only thing that
-knows how to read/write `job_tracker.db`. This is why adding the extension
-later didn't require touching a single line of dashboard code — they're
-both just separate "clients" of the same API.
+**Auth flow:** User signs in via Google → Supabase issues a JWT → dashboard sends that token as a Bearer header on every API call → backend verifies the token and only returns that user's data.
 
-### How the extension itself works (briefly)
+### How the extension works internally
 
-A browser extension has separate JavaScript contexts that don't share memory
-directly — they only talk to each other through message-passing:
+A browser extension has separate JS contexts that can't share memory — they communicate via message-passing:
 
-1. **Content script** — JS injected into the actual job posting page. It can
-   read that page's HTML but can't directly call our backend (browser
-   security model blocks that).
-2. **Popup script** — runs when you click the toolbar icon. This is what
-   actually calls the FastAPI backend.
+1. **Content script** — injected into the job posting page. Reads the DOM but can't call our backend directly (browser security blocks it).
+2. **Popup script** — runs when you click the toolbar icon. This is what calls the backend.
 
-So the flow for an auto-filled save is: content script reads the page →
-popup asks it for that data via `chrome.tabs.sendMessage` → popup pre-fills
-the form → you confirm → popup `fetch()`s the backend directly. Full
-breakdown and load-it-yourself instructions are in `extension/README.md`.
+Flow: content script reads the page → popup requests that data via `chrome.tabs.sendMessage` → popup pre-fills the form → you confirm → popup posts to the backend.
 
 ---
 
 ## Project structure
 
 ```
-job-tracker/
-├── backend/              # FastAPI + SQLite API
-│   ├── main.py           # All API routes (create/list/update/delete/stats)
+ApplyBoard/
+├── backend/
+│   ├── main.py           # All API routes + JWT auth
 │   ├── database.py       # SQLAlchemy model + DB setup
-│   ├── schemas.py        # Request/response validation (Pydantic)
+│   ├── schemas.py        # Pydantic request/response schemas
 │   └── requirements.txt
 │
-├── dashboard/            # React (Vite) frontend
+├── dashboard/
 │   ├── src/
 │   │   ├── App.jsx               # Main pipeline view
-│   │   ├── api.js                # Talks to the backend
-│   │   ├── constants.js          # Status pipeline + platform list (single source of truth)
+│   │   ├── api.js                # fetch() wrapper — one place to change the backend URL
+│   │   ├── supabase.js           # Supabase client (auth)
+│   │   ├── constants.js          # Status pipeline + platform list
 │   │   └── components/
-│   │       ├── ApplicationCard.jsx
+│   │       ├── LoginPage.jsx          # Google sign-in screen
 │   │       ├── ApplicationModal.jsx   # Add/edit form
-│   │       ├── PipelineColumn.jsx
+│   │       ├── ApplicationRow.jsx
 │   │       ├── StatsHeader.jsx
-│   │       └── StatusBadge.jsx
+│   │       └── StatusSection.jsx
 │   └── package.json
 │
-├── extension/            # Chrome/Edge browser extension
-│   ├── manifest.json      # permissions, content script targets, popup config
-│   ├── popup.html/css/js  # the UI that opens on icon click + save logic
-│   ├── content-scripts/   # one per supported site (DOM scraping)
+├── extension/
+│   ├── manifest.json
+│   ├── popup.html / popup.css / popup.js
+│   ├── content-scripts/
 │   │   ├── linkedin.js
 │   │   ├── naukri.js
 │   │   ├── internshala.js
 │   │   └── indeed.js
 │   └── icons/
 │
-└── docs/                 # supporting notes
+└── render.yaml           # Render deployment config
 ```
 
 ---
 
-## Running it locally
+## Data model
 
-You'll need two terminals — one for the backend, one for the dashboard.
-
-**Backend:**
-```bash
-cd backend
-pip install -r requirements.txt
-uvicorn main:app --reload --port 8000
-```
-This starts the API at `http://127.0.0.1:8000`. Visit `http://127.0.0.1:8000/docs` for the auto-generated, interactive API explorer — handy for testing endpoints without writing curl commands.
-
-**Dashboard:**
-```bash
-cd dashboard
-npm install
-npm run dev
-```
-This starts the dashboard at `http://localhost:5173`. It expects the backend to already be running on port 8000.
-
-> The backend creates a `job_tracker.db` SQLite file automatically on first run — no manual database setup needed.
-
-**Browser Extension (optional, Chrome/Edge):**
-With the backend running, go to `chrome://extensions`, turn on Developer
-mode, click **Load unpacked**, and select the `extension/` folder. Full
-instructions and how it works in `extension/README.md`.
-
----
-
-## Using it on iPad
-
-The dashboard installs as a home-screen app on iPad, but it still needs to
-reach the FastAPI backend somewhere — and "localhost" on an iPad means the
-iPad itself, not your laptop. So for now, this only works while both
-devices are on the same WiFi:
-
-1. On your laptop, find its local network IP (Windows: `ipconfig`, look
-   for "IPv4 Address" under your WiFi adapter — something like `192.168.1.42`)
-2. Start the backend so it listens on the network, not just localhost:
-   ```bash
-   uvicorn main:app --reload --port 8000 --host 0.0.0.0
-   ```
-3. On the iPad, open Safari and go to `http://192.168.1.42:5173` (your
-   laptop's IP, dashboard's port) — you'll need `dashboard/src/api.js`'s
-   `BASE_URL` updated to that same IP too, since right now it points at
-   `127.0.0.1`, which only means "this device," wherever it runs.
-4. Tap the **Share** button → **Add to Home Screen**
-
-This only works while you're on the same WiFi as your laptop. The
-permanent fix is deploying the backend somewhere reachable from anywhere
-(Railway, like UPI Sentinel) — deferred for now by design, see Roadmap.
-
-**Why there's no offline support yet:** the part of a PWA that makes it
-work without internet (a "service worker") requires the page to be loaded
-over HTTPS — plain `http://192.168.x.x` doesn't qualify on iOS Safari. We
-skipped this deliberately for now rather than set up certificates just to
-test on a local network; it'll make more sense once the backend is
-actually deployed to a real HTTPS domain anyway.
-
----
-
-## The data model
-
-Every application is one record with:
+Every application is one row:
 
 | Field | What it's for |
 |---|---|
+| `user_id` | Supabase user UUID — every row is owned by exactly one user |
 | `company`, `role` | the basics |
 | `platform` | LinkedIn, Naukri, Internshala, Indeed, Company Website, Referral, Other |
 | `url` | link back to the original posting |
 | `status` | Applied → Screening → Interview → Offer / Rejected |
-| `criteria` | the JD requirements or key asks — so when they call back, I remember what I claimed to meet |
-| `notes` | referral names, follow-up reminders, salary conversations — anything free-text |
-| `date_applied`, `created_at`, `updated_at` | timestamps, mostly to power the "X days since applied" indicator on each card |
-
-Why a fixed 5-stage pipeline instead of letting status be any free text? Because a small, fixed set of stages is what makes the dashboard's column view possible — it's also just how the actual hiring process works almost everywhere I've applied.
+| `criteria` | JD requirements / key asks — so when they call back, you remember what you claimed to meet |
+| `notes` | referral names, follow-up reminders, salary conversations |
+| `full_description` | full raw JD text, auto-captured by the extension |
+| `date_applied`, `created_at`, `updated_at` | timestamps |
 
 ---
 
-## Design notes (for anyone reading the code)
+## Design decisions
 
-A few decisions that might look like "why didn't you just do X" if you're skimming:
-
-- **SQLite, not Postgres** — this is a single-user, local-first tool. SQLite is zero-setup and the whole "database" is one file. If this ever needs multi-user/cloud deployment, swapping to Postgres later is a one-line change to `DATABASE_URL` in `database.py` — the SQLAlchemy models don't change.
-- **CORS wide open (`allow_origins=["*"]`)** — fine for now since this only runs on localhost talking to itself. Will get tightened once/if this is ever deployed publicly.
-- **Status is a plain string, not a strict Enum at the DB level** — validated at the API layer instead. This means adding a new stage later (like "Withdrawn") is a one-file change in `constants.js` / `schemas.py`, not a database migration.
-- **`PATCH`, not `PUT`, for updates** — you can update just the `status` field without resending the whole application. This is what makes "drag a card to a new status" type interactions cheap.
-- **Fixed-width pipeline columns, not flexible ones** — on a wide desktop screen all 5 status columns fit, but on iPad width they don't. Letting columns flex/shrink to fit would hide that fact (everything just gets cramped); fixed-width columns plus a horizontal scroll plus a fade-edge hint on the right makes it obvious there's more to scroll to, instead of silently cutting content off.
+- **Supabase (Postgres), not SQLite for production** — SQLite is still used for local dev (zero setup). Switching between them is one line in `database.py`.
+- **JWT auth, not session cookies** — the extension and dashboard are separate clients; a token in the Authorization header works for both without needing shared cookie state.
+- **`PATCH` not `PUT` for updates** — you can update just `status` without resending the whole record. Makes "move card to Interview" a tiny request.
+- **Fixed status pipeline, not free text** — `Applied → Screening → Interview → Offer → Rejected`. A fixed set is what makes the column view possible and matches how hiring actually works.
+- **CORS wide open** — fine for now since auth handles access control. Worth tightening to specific origins before any serious public launch.
 
 ---
 
@@ -197,9 +240,12 @@ A few decisions that might look like "why didn't you just do X" if you're skimmi
 1. ~~Backend API~~ ✅
 2. ~~React dashboard~~ ✅
 3. ~~Browser extension~~ ✅
-4. ~~PWA setup for iPad~~ ✅
-5. Get the backend reachable from the iPad (local network IP today, real deployment later) — see "Using it on iPad" below
-6. (Maybe) Cloud-built native iOS app, if the PWA route turns out to be limiting
+4. ~~PWA / iPad support~~ ✅
+5. ~~Deploy backend (Render) + database (Supabase)~~ ✅
+6. ~~Deploy frontend (Vercel)~~ ✅
+7. ~~Google Auth — per-user data isolation~~ ✅
+8. Rate limiting on the API
+9. (Maybe) native iOS app if PWA turns out limiting
 
 ---
 
