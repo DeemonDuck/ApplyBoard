@@ -12,8 +12,10 @@ Then visit http://127.0.0.1:8000/docs for the interactive API explorer
 
 from fastapi import FastAPI, Depends, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from sqlalchemy.orm import Session
 from typing import Optional, List
+import jwt
 
 from database import init_db, get_db, JobApplication
 from schemas import JobApplicationCreate, JobApplicationUpdate, JobApplicationOut, VALID_STATUSES
@@ -24,11 +26,6 @@ app = FastAPI(
     version="0.1.0",
 )
 
-# CORS is wide open (allow_origins=["*"]) because this is a local-only,
-# single-user tool right now — requests will come from the dashboard
-# (localhost) and the browser extension (which runs in an extension
-# context, not a normal origin). If this ever gets deployed publicly,
-# this should be tightened to specific origins.
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -36,6 +33,22 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+SUPABASE_JWT_SECRET = "yPVYU6Ax7LsASWQwePAAiFcjI7TeHxJkFu58AO5UC8TmUYnv2TArcekVIHN4/JJbGUaYp3O5lmkz8Ar0lEYGw=="
+
+bearer_scheme = HTTPBearer()
+
+def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(bearer_scheme)) -> str:
+    try:
+        payload = jwt.decode(
+            credentials.credentials,
+            SUPABASE_JWT_SECRET,
+            algorithms=["HS256"],
+            options={"verify_aud": False},
+        )
+        return payload["sub"]  # Supabase user UUID
+    except Exception:
+        raise HTTPException(status_code=401, detail="Invalid or expired token")
 
 @app.on_event("startup")
 def on_startup():
@@ -48,12 +61,12 @@ def root():
 
 
 @app.post("/applications", response_model=JobApplicationOut)
-def create_application(payload: JobApplicationCreate, db: Session = Depends(get_db)):
+def create_application(payload: JobApplicationCreate, db: Session = Depends(get_db), user_id: str = Depends(get_current_user)):
     """Log a new job application."""
     if payload.status not in VALID_STATUSES:
         raise HTTPException(status_code=400, detail=f"status must be one of {VALID_STATUSES}")
 
-    new_app = JobApplication(**payload.model_dump())
+    new_app = JobApplication(**payload.model_dump(), user_id=user_id)
     db.add(new_app)
     db.commit()
     db.refresh(new_app)
@@ -62,15 +75,12 @@ def create_application(payload: JobApplicationCreate, db: Session = Depends(get_
 
 @app.get("/applications", response_model=List[JobApplicationOut])
 def list_applications(
-    status: Optional[str] = Query(None, description="Filter by status, e.g. Interview"),
-    platform: Optional[str] = Query(None, description="Filter by platform, e.g. LinkedIn"),
+    status: Optional[str] = Query(None),
+    platform: Optional[str] = Query(None),
     db: Session = Depends(get_db),
+    user_id: str = Depends(get_current_user),
 ):
-    """
-    List all applications, optionally filtered by status and/or platform.
-    Most recent first (by date_applied).
-    """
-    query = db.query(JobApplication)
+    query = db.query(JobApplication).filter(JobApplication.user_id == user_id)
     if status:
         query = query.filter(JobApplication.status == status)
     if platform:
@@ -79,26 +89,19 @@ def list_applications(
 
 
 @app.get("/applications/{app_id}", response_model=JobApplicationOut)
-def get_application(app_id: int, db: Session = Depends(get_db)):
-    """Fetch a single application by id."""
-    app_obj = db.query(JobApplication).filter(JobApplication.id == app_id).first()
+def get_application(app_id: int, db: Session = Depends(get_db), user_id: str = Depends(get_current_user)):
+    app_obj = db.query(JobApplication).filter(JobApplication.id == app_id, JobApplication.user_id == user_id).first()
     if not app_obj:
         raise HTTPException(status_code=404, detail="Application not found")
     return app_obj
 
 @app.patch("/applications/{app_id}", response_model=JobApplicationOut)
-def update_application(app_id: int, payload: JobApplicationUpdate, db: Session = Depends(get_db)):
-    """
-    Update an existing application. Only the fields you send get changed —
-    this is what makes quick status updates (e.g. moving to 'Interview')
-    cheap and simple from the dashboard.
-    """
-    app_obj = db.query(JobApplication).filter(JobApplication.id == app_id).first()
+def update_application(app_id: int, payload: JobApplicationUpdate, db: Session = Depends(get_db), user_id: str = Depends(get_current_user)):
+    app_obj = db.query(JobApplication).filter(JobApplication.id == app_id, JobApplication.user_id == user_id).first()
     if not app_obj:
         raise HTTPException(status_code=404, detail="Application not found")
 
     update_data = payload.model_dump(exclude_unset=True)
-
     if "status" in update_data and update_data["status"] not in VALID_STATUSES:
         raise HTTPException(status_code=400, detail=f"status must be one of {VALID_STATUSES}")
 
@@ -111,24 +114,18 @@ def update_application(app_id: int, payload: JobApplicationUpdate, db: Session =
 
 
 @app.delete("/applications/{app_id}")
-def delete_application(app_id: int, db: Session = Depends(get_db)):
-    """Remove an application (e.g. if you logged it by mistake)."""
-    app_obj = db.query(JobApplication).filter(JobApplication.id == app_id).first()
+def delete_application(app_id: int, db: Session = Depends(get_db), user_id: str = Depends(get_current_user)):
+    app_obj = db.query(JobApplication).filter(JobApplication.id == app_id, JobApplication.user_id == user_id).first()
     if not app_obj:
         raise HTTPException(status_code=404, detail="Application not found")
-
     db.delete(app_obj)
     db.commit()
     return {"message": f"Application {app_id} deleted"}
 
 
 @app.get("/stats")
-def get_stats(db: Session = Depends(get_db)):
-    """
-    Quick summary numbers — how many applications per status.
-    Handy for a dashboard header like 'You've applied to 47 jobs, 5 in Interview stage'.
-    """
-    all_apps = db.query(JobApplication).all()
+def get_stats(db: Session = Depends(get_db), user_id: str = Depends(get_current_user)):
+    all_apps = db.query(JobApplication).filter(JobApplication.user_id == user_id).all()
     counts = {status: 0 for status in VALID_STATUSES}
     for a in all_apps:
         counts[a.status] = counts.get(a.status, 0) + 1

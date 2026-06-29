@@ -36,6 +36,7 @@ class JobApplication(Base):
     __tablename__ = "job_applications"
 
     id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(String, nullable=False, index=True)  # Supabase user UUID
 
     company = Column(String, nullable=False)
     role = Column(String, nullable=False)
