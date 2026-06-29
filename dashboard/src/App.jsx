@@ -4,8 +4,9 @@ import { STATUSES } from "./constants";
 import StatsHeader from "./components/StatsHeader";
 import StatusSection from "./components/StatusSection";
 import ApplicationModal from "./components/ApplicationModal";
+import { supabase } from "./supabase";
 
-export default function App() {
+export default function App({ session }) {
   const [applications, setApplications] = useState([]);
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -122,8 +123,24 @@ export default function App() {
             Every application, every platform, one ledger.
           </p>
         </div>
-        <button
-          onClick={openCreateModal}
+        <div style={{ display: "flex", alignItems: "center", gap: "var(--space-3)", flexWrap: "wrap" }}>
+          <span style={{ color: "var(--paper-dim)", fontSize: "13px" }}>{session.user.email}</span>
+          <button
+            onClick={() => supabase.auth.signOut()}
+            style={{
+              background: "transparent",
+              color: "var(--paper-dim)",
+              border: "1px solid var(--paper-dim)",
+              borderRadius: "var(--radius-sm)",
+              padding: "6px 14px",
+              fontSize: "13px",
+              cursor: "pointer",
+            }}
+          >
+            Sign out
+          </button>
+          <button
+            onClick={openCreateModal}
           style={{
             background: "var(--status-interview)",
             color: "var(--ink)",
@@ -137,6 +154,7 @@ export default function App() {
         >
           + Log application
         </button>
+        </div>
       </header>
 
       <StatsHeader stats={stats} />
