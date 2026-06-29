@@ -7,7 +7,7 @@
  * one-line change instead of hunting through every component.
  */
 
-const BASE_URL = "http://127.0.0.1:8000";
+const BASE_URL = "https://applyboard-rmxl.onrender.com";
 
 async function request(path, options = {}) {
   const res = await fetch(`${BASE_URL}${path}`, {
