@@ -11,7 +11,22 @@
  * but keeps the extension dependency-free.
  */
 
-const BASE_URL = "https://applyboard-rmxl.onrender.com";
+// Prefer the local backend (offline mode, like the original setup). If uvicorn
+// isn't running locally, fall back to the deployed one. Resolved once when the
+// popup opens; the submit handler waits on it.
+const LOCAL_URL = "http://127.0.0.1:8000";
+const REMOTE_URL = "https://applyboard-rmxl.onrender.com";
+
+let BASE_URL = REMOTE_URL;
+
+const backendReady = (async () => {
+  try {
+    const res = await fetch(`${LOCAL_URL}/`, { method: "GET" });
+    if (res.ok) BASE_URL = LOCAL_URL;
+  } catch (_) {
+    // local backend not running → stay on the deployed one
+  }
+})();
 
 const form = document.getElementById("capture-form");
 const statusMsg = document.getElementById("status-msg");
@@ -65,6 +80,7 @@ async function tryAutoFill() {
 // --- Step 2: handle form submission ---
 form.addEventListener("submit", async (e) => {
   e.preventDefault();
+  await backendReady; // make sure we know whether to hit local or deployed
 
   const payload = {
     company: document.getElementById("company").value.trim(),
