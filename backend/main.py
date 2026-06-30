@@ -15,9 +15,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from sqlalchemy.orm import Session
 from typing import Optional, List
-import httpx
 
-from database import init_db, get_db, JobApplication
+from database import init_db, get_db, JobApplication, LOCAL_MODE
 from schemas import JobApplicationCreate, JobApplicationUpdate, JobApplicationOut, VALID_STATUSES
 
 app = FastAPI(
@@ -37,9 +36,20 @@ app.add_middleware(
 SUPABASE_URL = "https://dejqmsopgacdwpsftpfk.supabase.co"
 SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRlanFtc29wZ2FjZHdwc2Z0cGZrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODI3MTk1OTIsImV4cCI6MjA5ODI5NTU5Mn0.7T8rXwDP0-6Oy6eMrL1McnhDCp8WPUx9-_QJGuLd1Hc"
 
-bearer_scheme = HTTPBearer()
+bearer_scheme = HTTPBearer(auto_error=not LOCAL_MODE)
 
-async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(bearer_scheme)) -> str:
+LOCAL_USER_ID = "local-user"
+
+async def get_current_user(credentials: Optional[HTTPAuthorizationCredentials] = Depends(bearer_scheme)) -> str:
+    # Offline mode: no Supabase, no token needed. Everything belongs to one
+    # local user — same single-user experience as the original local setup.
+    if LOCAL_MODE:
+        return LOCAL_USER_ID
+
+    if credentials is None:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+
+    import httpx  # only needed online; keeps offline mode dependency-free
     async with httpx.AsyncClient() as client:
         resp = await client.get(
             f"{SUPABASE_URL}/auth/v1/user",

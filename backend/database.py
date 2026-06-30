@@ -19,9 +19,22 @@ load_dotenv()
 
 import os
 
-DATABASE_URL = os.environ.get("DATABASE_URL")  # set this to your Supabase connection string
+# Two modes, one codebase:
+#   • OFFLINE / local dev — no DATABASE_URL set → fall back to a local SQLite
+#     file (job_tracker.db). Zero setup, exactly like the original local flow:
+#     just run uvicorn.
+#   • ONLINE / deployed   — DATABASE_URL set (e.g. Supabase Postgres on Render)
+#     → use that instead.
+DATABASE_URL = os.environ.get("DATABASE_URL", "sqlite:///./job_tracker.db")
 
-engine = create_engine(DATABASE_URL)
+# The single switch the rest of the app keys off of. No DATABASE_URL means we're
+# running offline on SQLite, so auth gets skipped too (see main.py).
+LOCAL_MODE = not os.environ.get("DATABASE_URL")
+
+# SQLite needs check_same_thread=False to play nice with FastAPI's threading.
+connect_args = {"check_same_thread": False} if DATABASE_URL.startswith("sqlite") else {}
+
+engine = create_engine(DATABASE_URL, connect_args=connect_args)
 
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
