@@ -9,7 +9,7 @@ Think of this as the "contract" between backend and anything that talks
 to it (dashboard, extension, future iOS app).
 """
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 from typing import Optional
 from datetime import datetime
 
@@ -22,17 +22,33 @@ from datetime import datetime
 VALID_STATUSES = ["Applied", "Screening", "Interview", "Offer", "Rejected"]
 
 
+def _validate_url(v: Optional[str]) -> Optional[str]:
+    """Only allow http(s) URLs. Blocks javascript:/data: and other schemes
+    that could become a stored-XSS vector if the URL is ever rendered as a
+    clickable link. Empty / missing is fine (url is optional)."""
+    if v is None or v.strip() == "":
+        return v
+    if not (v.startswith("http://") or v.startswith("https://")):
+        raise ValueError("url must start with http:// or https://")
+    return v
+
+
 class JobApplicationCreate(BaseModel):
     """What the client sends when logging a new application."""
-    company: str
-    role: str
-    platform: str
-    url: Optional[str] = None
-    location: Optional[str] = None
-    status: str = "Applied"
-    criteria: Optional[str] = None
-    notes: Optional[str] = None
-    full_description: Optional[str] = None
+    company: str = Field(..., min_length=1, max_length=200)
+    role: str = Field(..., min_length=1, max_length=200)
+    platform: str = Field(..., max_length=100)
+    url: Optional[str] = Field(None, max_length=2000)
+    location: Optional[str] = Field(None, max_length=200)
+    status: str = Field("Applied", max_length=50)
+    criteria: Optional[str] = Field(None, max_length=10_000)
+    notes: Optional[str] = Field(None, max_length=10_000)
+    full_description: Optional[str] = Field(None, max_length=100_000)
+
+    @field_validator("url")
+    @classmethod
+    def check_url(cls, v):
+        return _validate_url(v)
 
 
 class JobApplicationUpdate(BaseModel):
@@ -41,15 +57,20 @@ class JobApplicationUpdate(BaseModel):
     Every field is optional here — you might just want to update the
     status (e.g. "Applied" -> "Interview") without resending everything else.
     """
-    company: Optional[str] = None
-    role: Optional[str] = None
-    platform: Optional[str] = None
-    url: Optional[str] = None
-    location: Optional[str] = None
-    status: Optional[str] = None
-    criteria: Optional[str] = None
-    notes: Optional[str] = None
-    full_description: Optional[str] = None
+    company: Optional[str] = Field(None, min_length=1, max_length=200)
+    role: Optional[str] = Field(None, min_length=1, max_length=200)
+    platform: Optional[str] = Field(None, max_length=100)
+    url: Optional[str] = Field(None, max_length=2000)
+    location: Optional[str] = Field(None, max_length=200)
+    status: Optional[str] = Field(None, max_length=50)
+    criteria: Optional[str] = Field(None, max_length=10_000)
+    notes: Optional[str] = Field(None, max_length=10_000)
+    full_description: Optional[str] = Field(None, max_length=100_000)
+
+    @field_validator("url")
+    @classmethod
+    def check_url(cls, v):
+        return _validate_url(v)
 
 
 class JobApplicationOut(BaseModel):
