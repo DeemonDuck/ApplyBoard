@@ -228,7 +228,7 @@ Every application is one row:
 - **JWT auth, not session cookies** — the extension and dashboard are separate clients; a token in the Authorization header works for both without needing shared cookie state.
 - **`PATCH` not `PUT` for updates** — you can update just `status` without resending the whole record. Makes "move card to Interview" a tiny request.
 - **Fixed status pipeline, not free text** — `Applied → Screening → Interview → Offer → Rejected`. A fixed set is what makes the column view possible and matches how hiring actually works.
-- **CORS wide open** — fine for now since auth handles access control. Worth tightening to specific origins before any serious public launch.
+- **CORS scoped by mode** — offline allows only the local Vite dev origins; online allows just the deployed dashboard origin (overridable via `FRONTEND_ORIGIN`). The extension reaches the API through its manifest `host_permissions`, not CORS, so it isn't listed.
 
 ---
 
@@ -241,7 +241,42 @@ Every application is one row:
 5. ~~Deploy backend (Render) + database (Supabase)~~ ✅
 6. ~~Deploy frontend (Vercel)~~ ✅
 7. ~~Google Auth — per-user data isolation~~ ✅
-8. Rate limiting on the API
+8. ~~Rate limiting on the API~~ ✅
+
+---
+
+## Security
+
+The deployed (online) app is hardened beyond the basic auth flow:
+
+- **Per-user data isolation** — every API query is scoped to the `user_id` from the verified token; no cross-user access.
+- **Local JWT verification** — when `SUPABASE_JWT_SECRET` is set, tokens are verified in-process (signature/audience/expiry) instead of a network call per request. Falls back to the Supabase API if unset.
+- **Rate limiting** — 120 requests/min per IP on the deployed API (disabled offline).
+- **Input + body-size limits** — all fields are length-capped and requests over 256 KB are rejected (413).
+- **URL validation** — stored URLs must be `http(s)://`, closing a stored-XSS vector.
+- **Scoped CORS** — only the known dashboard origin is allowed online; only localhost offline.
+
+### Environment variables (online mode)
+
+| Var | Required | Purpose |
+|---|---|---|
+| `DATABASE_URL` | yes | Postgres/Supabase connection string. Its presence is what enables online mode. |
+| `SUPABASE_JWT_SECRET` | recommended | Supabase → Settings → API → JWT Secret. Enables fast local token verification. |
+| `FRONTEND_ORIGIN` | optional | Overrides the allowed CORS origin (use for your own fork/preview domain). |
+
+See `backend/.env.example` for a template. Never commit a real `.env` (it's gitignored).
+
+### One-time database hardening (recommended)
+
+Run `backend/security/supabase_setup.sql` in the Supabase SQL editor to enable Row Level Security (defense-in-depth against the public anon key) and create a least-privilege DB role. Then point `DATABASE_URL` at that role instead of the `postgres` superuser, and **rotate the database password** (Supabase → Settings → Database).
+
+### Known follow-up
+
+A few transitive `starlette` advisories remain; clearing them requires a major FastAPI upgrade (Starlette 1.x + a lifespan-handler migration). They are multipart/form-parsing DoS-class issues, and this API only accepts JSON with a body-size cap and rate limiting, so the practical exposure is low. Tracked for a future upgrade.
+
+### Running offline safely
+
+Offline mode disables auth (single local user). Keep the backend bound to localhost — the default `uvicorn main:app --port 8000` binds `127.0.0.1`, so don't add `--host 0.0.0.0` on a shared/untrusted network, or others on that network could read/write your local data.
 
 ---
 
