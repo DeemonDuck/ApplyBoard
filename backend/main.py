@@ -19,6 +19,11 @@ from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from sqlalchemy.orm import Session
 from typing import Optional, List
 
+from slowapi import Limiter, _rate_limit_exceeded_handler
+from slowapi.errors import RateLimitExceeded
+from slowapi.middleware import SlowAPIMiddleware
+from slowapi.util import get_remote_address
+
 from database import init_db, get_db, JobApplication, LOCAL_MODE
 from schemas import JobApplicationCreate, JobApplicationUpdate, JobApplicationOut, VALID_STATUSES
 
@@ -27,6 +32,27 @@ app = FastAPI(
     description="Backend for tracking job applications across platforms (LinkedIn, Naukri, Internshala, etc.)",
     version="0.1.0",
 )
+
+
+def _client_ip(request: Request) -> str:
+    # On Render the real client IP is in X-Forwarded-For; fall back to the
+    # socket peer for local runs.
+    xff = request.headers.get("x-forwarded-for")
+    if xff:
+        return xff.split(",")[0].strip()
+    return get_remote_address(request)
+
+
+# Rate limiting protects the deployed API from floods / brute force. Disabled
+# in LOCAL_MODE so offline single-user dev is never throttled.
+limiter = Limiter(
+    key_func=_client_ip,
+    default_limits=["120/minute"],
+    enabled=not LOCAL_MODE,
+)
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+app.add_middleware(SlowAPIMiddleware)
 
 app.add_middleware(
     CORSMiddleware,
