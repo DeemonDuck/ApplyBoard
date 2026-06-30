@@ -10,6 +10,8 @@ Then visit http://127.0.0.1:8000/docs for the interactive API explorer
 (FastAPI generates this automatically from the schemas + type hints below).
 """
 
+import os
+
 from fastapi import FastAPI, Depends, HTTPException, Query, Request
 from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
@@ -54,6 +56,11 @@ async def limit_body_size(request: Request, call_next):
 SUPABASE_URL = "https://dejqmsopgacdwpsftpfk.supabase.co"
 SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRlanFtc29wZ2FjZHdwc2Z0cGZrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODI3MTk1OTIsImV4cCI6MjA5ODI5NTU5Mn0.7T8rXwDP0-6Oy6eMrL1McnhDCp8WPUx9-_QJGuLd1Hc"
 
+# Set this (Supabase → Settings → API → JWT Secret) to verify tokens locally
+# via signature instead of a network call per request. Optional: if unset, we
+# fall back to asking Supabase to validate each token.
+SUPABASE_JWT_SECRET = os.environ.get("SUPABASE_JWT_SECRET")
+
 bearer_scheme = HTTPBearer(auto_error=not LOCAL_MODE)
 
 LOCAL_USER_ID = "local-user"
@@ -67,12 +74,35 @@ async def get_current_user(credentials: Optional[HTTPAuthorizationCredentials] =
     if credentials is None:
         raise HTTPException(status_code=401, detail="Not authenticated")
 
+    token = credentials.credentials
+
+    # Preferred path: verify the JWT signature locally. No network round-trip,
+    # and the API stays up even if Supabase's auth endpoint is slow/down. Also
+    # removes the amplification vector where each junk-token request forced an
+    # outbound call. Supabase signs session tokens HS256, audience "authenticated".
+    if SUPABASE_JWT_SECRET:
+        import jwt  # PyJWT
+        try:
+            claims = jwt.decode(
+                token,
+                SUPABASE_JWT_SECRET,
+                algorithms=["HS256"],
+                audience="authenticated",
+            )
+        except jwt.PyJWTError:
+            raise HTTPException(status_code=401, detail="Invalid or expired token")
+        user_id = claims.get("sub")
+        if not user_id:
+            raise HTTPException(status_code=401, detail="Token missing subject")
+        return user_id
+
+    # Fallback (no JWT secret configured): ask Supabase to validate the token.
     import httpx  # only needed online; keeps offline mode dependency-free
     async with httpx.AsyncClient() as client:
         resp = await client.get(
             f"{SUPABASE_URL}/auth/v1/user",
             headers={
-                "Authorization": f"Bearer {credentials.credentials}",
+                "Authorization": f"Bearer {token}",
                 "apikey": SUPABASE_ANON_KEY,
             },
         )
