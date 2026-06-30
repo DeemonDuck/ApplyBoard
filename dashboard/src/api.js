@@ -9,7 +9,16 @@
 
 import { supabase } from "./supabase";
 
-const BASE_URL = "https://applyboard-rmxl.onrender.com";
+// Offline when the dashboard is served from localhost (vite dev server),
+// online (deployed backend) otherwise. No config to flip — it just follows
+// wherever the page is running.
+const isLocal =
+  window.location.hostname === "localhost" ||
+  window.location.hostname === "127.0.0.1";
+
+const BASE_URL = isLocal
+  ? "http://127.0.0.1:8000"
+  : "https://applyboard-rmxl.onrender.com";
 
 async function request(path, options = {}) {
   const { data: { session } } = await supabase.auth.getSession();
