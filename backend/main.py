@@ -54,10 +54,20 @@ app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 app.add_middleware(SlowAPIMiddleware)
 
+# CORS is scoped by mode. Offline: only the local Vite dev server. Online: the
+# deployed dashboard origin (overridable via FRONTEND_ORIGIN for forks/previews).
+# The browser extension is NOT listed here on purpose — it reaches the API via
+# its manifest host_permissions, not CORS. allow_credentials stays False since
+# auth is a Bearer header, not cookies.
+if LOCAL_MODE:
+    ALLOWED_ORIGINS = ["http://localhost:5173", "http://127.0.0.1:5173"]
+else:
+    ALLOWED_ORIGINS = [os.environ.get("FRONTEND_ORIGIN", "https://apply-board-two.vercel.app")]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
+    allow_origins=ALLOWED_ORIGINS,
+    allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
 )
