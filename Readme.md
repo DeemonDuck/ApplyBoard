@@ -105,7 +105,7 @@ Supported sites with auto-fill: LinkedIn, Naukri, Internshala, Indeed. On any ot
 
 ## Running locally (for development)
 
-If you want to run everything on your own machine instead of using the live app:
+If you want to run everything on your own machine instead of using the live app, this works fully **offline** — no Supabase, no Google sign-in, no cloud database. One signal controls it: if there's **no `backend/.env`**, the backend uses a local SQLite file and skips auth entirely (single local user), exactly like the original setup. A fresh clone has no `.env`, so it's offline by default. (When `backend/.env` *does* set a `DATABASE_URL` — e.g. on Render — it switches to Postgres + Supabase auth.)
 
 **1. Clone the repo**
 ```bash
@@ -113,12 +113,7 @@ git clone https://github.com/DeemonDuck/ApplyBoard.git
 cd ApplyBoard
 ```
 
-**2. Backend**
-
-Create `backend/.env`:
-```
-DATABASE_URL=your_postgres_or_supabase_connection_string
-```
+**2. Backend** (no `.env` needed for offline — SQLite is used automatically)
 
 ```bash
 cd backend
@@ -126,7 +121,7 @@ pip install -r requirements.txt
 uvicorn main:app --reload --port 8000
 ```
 
-Visit `http://127.0.0.1:8000/docs` for the interactive API explorer.
+Visit `http://127.0.0.1:8000/docs` for the interactive API explorer. A `job_tracker.db` SQLite file is created next to it on first run.
 
 **3. Dashboard**
 ```bash
@@ -135,9 +130,11 @@ npm install
 npm run dev
 ```
 
-Dashboard runs at `http://localhost:5173`. Expects the backend on port 8000.
+Dashboard runs at `http://localhost:5173`. It auto-detects that it's on localhost, talks to the backend on port 8000, and skips the Google login screen — no code edits needed.
 
-> For local development you'll also need to update `dashboard/src/api.js` to point `BASE_URL` at `http://127.0.0.1:8000`, and `dashboard/src/supabase.js` with your own Supabase project credentials if you want auth to work locally.
+**4. Extension** — load `extension/` as an unpacked extension (see the Browser Extension section). The popup auto-detects a local backend on `http://127.0.0.1:8000` and uses it when it's running, falling back to the deployed backend otherwise.
+
+> To run the local backend against the *cloud* database/auth instead, create `backend/.env` with `DATABASE_URL=your_supabase_connection_string`. That flips it into online mode.
 
 ---
 
@@ -245,7 +242,6 @@ Every application is one row:
 6. ~~Deploy frontend (Vercel)~~ ✅
 7. ~~Google Auth — per-user data isolation~~ ✅
 8. Rate limiting on the API
-9. (Maybe) native iOS app if PWA turns out limiting
 
 ---
 
